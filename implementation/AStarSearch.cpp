@@ -151,12 +151,12 @@ public:
 
 int main() {
     // Example usage
-    TopSpinStateSpace::TopSpinState initialState({7, 1, 4, 9, 3, 6, 2, 5, 10, 8});
-    //TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 4, 8, 6, 9, 5, 2});
-    //TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 4, 13, 14, 8, 6, 9, 5, 2});
+    //TopSpinStateSpace::TopSpinState initialState({4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3});
+    //TopSpinStateSpace::TopSpinState initialState({7, 1, 4, 9, 3, 6, 2, 5, 10, 8});
+    TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 4, 8, 6, 9, 5, 2});
     //TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 14, 15, 4, 8, 6, 16, 9, 5, 13, 2});
     //TopSpinStateSpace::TopSpinState initialState({20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1});
-    //TopSpinStateSpace::TopSpinState initialState({4, 15, 8, 6, 1, 12, 11, 13, 5, 3, 2, 10, 16, 14, 7, 9});
+    //TopSpinStateSpace::TopSpinState initialState({4, 15, 8, 6, 17, 18, 1, 12, 11, 13, 5, 3, 2, 10, 19, 20, 16, 14, 7, 9});
     AStarSearch search(initialState);
     search.runSearchAlgorithm();
     return 0;

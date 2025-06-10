@@ -4,8 +4,10 @@
 #include <set>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <algorithm>
 #include <iostream>
+#include <ranges>
 
 namespace topspin {
 
@@ -18,48 +20,50 @@ std::vector<int> abstract_state(const std::vector<int>& input, const std::functi
     return abstraction;
 }
 
-/*Modes:
-    -> 1 == close groups f. ex. {1, 2, 3, 4, 5}
-    -> 2 == even/odd groups f. ex. {0, 2, 0, 4, 0} and {1, 0, 3, 0, 5}
-    -> 3 == distance of 3 between elements f. ex. {1, 0 , 0, 4, 0, 0}, {0, 2, 0, 0, 5, 0} and {0, 0, 3, 0, 0, 6}
-*/
-bool is_goal(const std::vector<int>& abstraction, int predicate) {
+//Normalize the vector by shifting elements to relative positions of smallest non-zero element
+std::vector<int> normalize(std::vector<int> state) {
+    auto filtered = state | std::views::filter([](int x) { return x != 0; });
+    int min_non_zero = *std::ranges::min_element(filtered);
+    
+    auto it = std::ranges::find(state, min_non_zero);
+    int current_index = std::distance(state.begin(), it);
+    int target_index = min_non_zero - 1;
+
+    // Compute rotation distance
+    int shift = (target_index - current_index + state.size()) % state.size();
+
+    // Rotate to move min_non_zero to target_index
+    std::rotate(state.begin(), state.begin() + (state.size() - shift), state.end());
+    return state;
+}
+
+// Check if the abstraction is a goal state by normalizing it and checking if it matches the expected goal state
+bool is_goal(const std::vector<int>& abstraction) {
     const int n = static_cast<int>(abstraction.size());
-    switch (predicate) {
-    case 1:
-        for (int i = 0; i < n; i++) {
-            int a = abstraction[i];
-            int b = abstraction[(i + 1) % n];
-            if (a == 0 || a == *std::max_element(abstraction.begin(), abstraction.end())) continue;
-            if ((a + 1) % n != b) return false;
+    std::vector<int> normalized = normalize(abstraction);
+    for (int i = 0; i < n; i++) {
+        if (normalized[i] == 0) {
+            continue;
+        } else if (normalized[i] != i + 1) {
+            return false;
         }
-        return true;
-    case 2:
-        for (int i = 0; i < n; i++) {
-            int a = abstraction[i];
-            int b = abstraction[(i + 2) % n];
-            if (a == 0) continue;
-            if (!((a + 2 == b) || (a == n && b == 2) || (a == n - 1 && b == 1))) return false;
-        }
-        return true;
-    case 3:
-        for (int i = 0; i < n; i++) {
-            int a = abstraction[i];
-            int b = abstraction[(i + 3) % n];
-            if (a == 0) continue;
-            if (!((a + 3 == b) || (a == n && b == 3) || (a == n - 1 && b == 2) || (a == n - 2 && b == 3))) return false;
-        }
-        return true;
-    case 4:
-        for (int i = 0; i < n; i++) {
-            int a = abstraction[i];
-            int b = abstraction[(i + 4) % n];
-            if (a == 0) continue;
-            if (!((a + 4 == b) || (a == n && b == 4) || (a == n - 1 && b == 3) || (a == n - 2 && b == 2) || (a == n - 3 && b == 1))) return false;
-        }
-        return true;
-    default:
-        break;
+    }
+    return true;
+}
+
+std::vector<int> subvec_wraparound(const std::vector<int>& vec, int pos, int len) {
+    std::vector<int> result;
+    int n = static_cast<int>(vec.size());
+    result.reserve(len);
+    for (int i = 0; i < len; i++) {
+        result.push_back(vec[(pos + i) % n]);
+    }
+    return result;
+}
+
+bool non_zero(const std::vector<int>& state, int pos, int n, int k) {
+    for (int i = 0; i < k; i++) {
+        if (state[(pos + i) % n] != 0) return true;
     }
     return false;
 }
@@ -76,48 +80,54 @@ std::vector<int> reverseWindow(const std::vector<int>& state, int pos, int k) {
     return newState;
 }
 
-int getSolutionLength(const std::vector<int>& abstraction, int k, const int predicate) {
-    if (is_goal(abstraction, predicate)) return 0;
-
+int getSolutionLength(const std::vector<int>& abstraction, int k) {
     using State = std::vector<int>;
-    struct VecHash { size_t operator()(const State& v) const noexcept {
-        size_t h = 0; for (int x : v) h ^= std::hash<int>{}(x) + 0x9e3779b9 + (h<<6) + (h>>2); return h;
-    }};
+    struct VecHash {
+        size_t operator()(const State& v) const noexcept {
+            size_t h = 0;
+            for (int x : v) h ^= std::hash<int>{}(x) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            return h;
+        }
+    };
+
+    State key = normalize(abstraction);
+    static std::unordered_map<State, int, VecHash> solutionLengthCache;
+
+    auto it = solutionLengthCache.find(key);
+    if (it != solutionLengthCache.end()) return it->second;
+ 
+
+    if (is_goal(key)) {
+        solutionLengthCache[key] = 0;
+        return 0;
+    }
+
     std::queue<std::pair<State, int>> q;
     std::unordered_set<State, VecHash> visited;
 
-    q.push({abstraction, 0});
-    visited.insert(abstraction);
+    q.push({key, 0});
+    visited.insert(key);
 
-    const int n = abstraction.size();
+    const int n = key.size();
 
     while (!q.empty()) {
         auto [current, depth] = q.front();
         q.pop();
 
-        std::vector<int> windowNonZero(n);
-        int cnt = 0;
-
-        for (int pos = 0; pos < n; ++pos) {
-            if (pos == 0) {
-                for (int i = 0; i < k; i++)
-                    cnt += current[i] != 0;
-            } else {
-                if (current[(pos - 1) % n] != 0) --cnt;
-                if (current[(pos + k - 1) % n] != 0) ++cnt;
-            }
-            windowNonZero[pos] = cnt;
-        }
-
         for (int pos = 0; pos < n; pos++) {
-            if (windowNonZero[pos] == 0) continue;
+            if (!non_zero(current, pos, n, k)) continue;
 
             State next = reverseWindow(current, pos, k);
             if (!visited.emplace(next).second) continue;
-            if (is_goal(next, predicate)) return depth + 1;
+
+            if (is_goal(next)) {
+                solutionLengthCache[key] = depth + 1;
+                return depth + 1;
+            }
             q.push({std::move(next), depth + 1});
         }
     }
+    solutionLengthCache[key] = -1;
     return -1;
 }
 

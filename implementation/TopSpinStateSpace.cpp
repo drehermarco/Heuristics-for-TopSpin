@@ -88,12 +88,11 @@ std::vector<TopSpinStateSpace::TopSpinActionStatePair> TopSpinStateSpace::succes
 }
 
 int TopSpinStateSpace::h(const TopSpinState& state) const {
-    //return topspin::gapHeuristic(state.permutation, state.k);
+    return topspin::gapHeuristic(state.permutation, state.k);
     //return topspin::abstractHeuristicTwoGroup(state.permutation, state.k);
     //return topspin::abstractHeuristicThreeGroup(state.permutation, state.k);
     //return topspin::abstractHeuristicFourGroup(state.permutation, state.k);
-    return topspin::abstractHeuristicOE(state.permutation, state.k);
+    //return topspin::abstractHeuristicOE(state.permutation, state.k);
     //return topspin::abstractHeuristicDistance3(state.permutation, state.k);
     //return topspin::abstractHeuristicDistance4(state.permutation, state.k);
-
 }
