@@ -1,4 +1,5 @@
 #include "TopSpinStateSpace.h"
+#include <cstdlib>
 #include <iostream>
 #include <cassert>
 #include <queue>
@@ -9,6 +10,8 @@
 #include <unordered_map>
 #include <chrono>
 #include <memory>
+#include <numeric>
+#include <random>
 
 namespace std {
     template <>
@@ -23,43 +26,67 @@ namespace std {
 
 using namespace std;
 
+TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
+    std::vector<int> permutation(size);
+    std::iota(permutation.begin(), permutation.end(), 1);
+    TopSpinStateSpace::TopSpinState state(permutation, k);
+
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> dist(0, size - 1);
+
+    for (int i = 0; i < m; i++) {
+        int pos = dist(rng);
+        TopSpinStateSpace::TopSpinAction action(pos);
+        action.apply(state);
+    }
+    return state;
+}
+
+class NodePool {
+    std::vector<std::unique_ptr<struct Node>> pool;
+public:
+    template<typename... Args>
+    Node* allocate(Args&&... args) {
+        pool.push_back(std::make_unique<Node>(std::forward<Args>(args)...));
+        return pool.back().get();
+    }
+    void clear() { pool.clear(); }
+};
+
+struct Node {
+    TopSpinStateSpace::TopSpinState state;
+    Node* parent;
+    TopSpinStateSpace::TopSpinAction action;
+    int cost;
+    int h;
+
+    Node(const TopSpinStateSpace::TopSpinState& s, Node* p,
+         const TopSpinStateSpace::TopSpinAction& a, int c, int h)
+        : state(s), parent(p), action(a), cost(c), h(h) {}
+};
+
+struct CompareNodes {
+    bool operator()(const Node* a, const Node* b) const {
+        int f_a = a->cost + 1 * a->h;
+        int f_b = b->cost + 1 * b->h;
+        if (f_a != f_b) return f_a > f_b;
+        return a->h > b->h;
+    }
+};
+
 class AStarSearch {
 private:
     long statesGenerated = 0;
     long expandedNodes = 0;
 
-    struct Node {
-        TopSpinStateSpace::TopSpinState state;
-        Node* parent;
-        TopSpinStateSpace::TopSpinAction action;
-        int cost;
-        int h;
-
-        Node(const TopSpinStateSpace::TopSpinState& s, Node* p,
-             const TopSpinStateSpace::TopSpinAction& a, int c, int h)
-            : state(s), parent(p), action(a), cost(c), h(h) {}
-    };
-
-    struct CompareNodes {
-        bool operator()(const Node* a, const Node* b) const {
-            int f_a = a->cost + 20 * a->h;
-            int f_b = b->cost + 20 * b->h;
-
-            if (f_a != f_b) {
-                return f_a > f_b;
-            } else {
-                return a->h > b->h;
-            }
-        }
-    };
-
-    vector<TopSpinStateSpace::TopSpinActionStatePair> extract_path(Node* node) {
-        vector<TopSpinStateSpace::TopSpinActionStatePair> path;
+    std::vector<TopSpinStateSpace::TopSpinActionStatePair> extract_path(Node* node) {
+        std::vector<TopSpinStateSpace::TopSpinActionStatePair> path;
         while (node && node->parent) {
-            path.push_back(TopSpinStateSpace::TopSpinActionStatePair(node->action, node->state));
+            path.push_back({node->action, node->state});
             node = node->parent;
         }
-        reverse(path.begin(), path.end());
+        std::reverse(path.begin(), path.end());
         return path;
     }
 
@@ -69,12 +96,12 @@ public:
     AStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
         : stateSpace(initialState.size, initialState) {}
 
-    void runSearchAlgorithm() {
+    void runSearchAlgorithm(const string& heuristic) {
         using namespace std::chrono;
 
         cout << "Starting search..." << endl;
         auto timeStart = high_resolution_clock::now();
-        vector<TopSpinStateSpace::TopSpinActionStatePair> solution = run_Algorithm();
+        vector<TopSpinStateSpace::TopSpinActionStatePair> solution = run_Algorithm(heuristic);
         auto timeEnd = high_resolution_clock::now();
 
         double elapsedSeconds = duration<double>(timeEnd - timeStart).count();
@@ -87,7 +114,7 @@ public:
             int totalCost = 0;
             cout << "Solution:" << endl;
             for (const auto& pair : solution) {
-                cout << "State: " << pair.state << " with heuristic: " << stateSpace.h(pair.state) << endl;
+                cout << "State: " << pair.state << " with heuristic: " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
@@ -95,69 +122,70 @@ public:
         }
     }
 
-    vector<TopSpinStateSpace::TopSpinActionStatePair> run_Algorithm() {
+    vector<TopSpinStateSpace::TopSpinActionStatePair> run_Algorithm(const string& heuristic) {
+        NodePool nodePool;
         priority_queue<Node*, vector<Node*>, CompareNodes> open;
-        unordered_map<TopSpinStateSpace::TopSpinState, int> closed;
+        unordered_map<TopSpinStateSpace::TopSpinState, int> g_values;
 
-        TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
-        int initial_h = stateSpace.h(initialState);
+        auto initialState = stateSpace.getInitialState();
+        int initial_h = stateSpace.h(initialState, heuristic);
 
         cout << "Initial state: " << initialState << endl;
         cout << "Heuristic value of initial state: " << initial_h << endl;
 
-        if (initial_h == INT_MAX)
-            return {};
+        if (initial_h == INT_MAX) return {};
 
-        Node* root = new Node(initialState, nullptr, TopSpinStateSpace::TopSpinAction(-1), 0, initial_h);
+        Node* root = nodePool.allocate(initialState, nullptr, TopSpinStateSpace::TopSpinAction(-1), 0, initial_h);
         open.push(root);
+        g_values[initialState] = 0;
         statesGenerated++;
 
         while (!open.empty()) {
             Node* current = open.top();
             open.pop();
 
-            auto closedIt = closed.find(current->state);
-            if (closedIt != closed.end() && closedIt->second <= current->cost) {
-                delete current;
-                continue;
-            }
-            closed[current->state] = current->cost;
-
             if (stateSpace.is_Goal(current->state)) {
-                vector<TopSpinStateSpace::TopSpinActionStatePair> path = extract_path(current);
-                while (!open.empty()) {
-                    delete open.top();
-                    open.pop();
-                }
-                delete current;
+                auto path = extract_path(current);
+                nodePool.clear();
                 return path;
             }
 
+            if (g_values[current->state] < current->cost) continue;
+
             for (const auto& pair : stateSpace.successors(current->state)) {
                 int g = current->cost + pair.action.cost();
-                int h = stateSpace.h(pair.state);
+                int h = stateSpace.h(pair.state, heuristic);
                 if (h == INT_MAX) continue;
 
-                Node* successor = new Node(pair.state, current, pair.action, g, h);
-                open.push(successor);
+                auto it = g_values.find(pair.state);
+                if (it != g_values.end() && g >= it->second) continue;
+
+                g_values[pair.state] = g;
+                Node* child = nodePool.allocate(pair.state, current, pair.action, g, h);
+                open.push(child);
                 statesGenerated++;
             }
             expandedNodes++;
         }
 
+        nodePool.clear();
         return {};
     }
 };
 
-int main() {
-    // Example usage
-    //TopSpinStateSpace::TopSpinState initialState({4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3});
-    //TopSpinStateSpace::TopSpinState initialState({7, 1, 4, 9, 3, 6, 2, 5, 10, 8});
-    TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 4, 8, 6, 9, 5, 2});
+int main(int argc, char* argv[]) {
+    if (argc < 5) {
+        std::cerr << "Usage: " << argv[0] << " n k m\n";
+        return 1;
+    }
+
+    int n = std::atoi(argv[1]);
+    int k = std::atoi(argv[2]);
+    int m = std::atoi(argv[3]);
+    string heuristic = argv[4];
+    TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
     //TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 14, 15, 4, 8, 6, 16, 9, 5, 13, 2});
-    //TopSpinStateSpace::TopSpinState initialState({20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1});
-    //TopSpinStateSpace::TopSpinState initialState({4, 15, 8, 6, 17, 18, 1, 12, 11, 13, 5, 3, 2, 10, 19, 20, 16, 14, 7, 9});
     AStarSearch search(initialState);
-    search.runSearchAlgorithm();
+    search.runSearchAlgorithm(heuristic);
     return 0;
 }

@@ -7,10 +7,10 @@
 
 // TopSpinState
 TopSpinStateSpace::TopSpinState::TopSpinState() : size(0) {}
-TopSpinStateSpace::TopSpinState::TopSpinState(const std::vector<int>& perm) {
+TopSpinStateSpace::TopSpinState::TopSpinState(const std::vector<int>& perm, const int k) {
     permutation = perm;
     size = perm.size();
-    k = 4; // Assuming k is fixed at 4 for the TopSpin puzzle
+    this->k = k;
 }
 
 bool TopSpinStateSpace::TopSpinState::operator==(const TopSpinState& other) const {
@@ -87,12 +87,28 @@ std::vector<TopSpinStateSpace::TopSpinActionStatePair> TopSpinStateSpace::succes
     return result;
 }
 
-int TopSpinStateSpace::h(const TopSpinState& state) const {
-    return topspin::gapHeuristic(state.permutation, state.k);
-    //return topspin::abstractHeuristicTwoGroup(state.permutation, state.k);
-    //return topspin::abstractHeuristicThreeGroup(state.permutation, state.k);
-    //return topspin::abstractHeuristicFourGroup(state.permutation, state.k);
-    //return topspin::abstractHeuristicOE(state.permutation, state.k);
-    //return topspin::abstractHeuristicDistance3(state.permutation, state.k);
-    //return topspin::abstractHeuristicDistance4(state.permutation, state.k);
+int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic) const {
+    using HeuristicFunc = int(*)(const std::vector<int>&, int);
+    static const std::unordered_map<std::string, HeuristicFunc> heuristics = {
+        {"gap", topspin::gapHeuristic},
+        {"manhatten", topspin::circularManhattanHeuristic},
+        {"twoGroup", topspin::twoGroup},
+        {"threeGroup", topspin::threeGroup},
+        {"fourGroup", topspin::fourGroup},
+        {"oddEven", topspin::oddEven},
+        {"threeDistance", topspin::threeDistance},
+        {"fourDistance", topspin::fourDistance},
+        {"twoGroupC", topspin::twoGroupC},
+        {"threeGroupC", topspin::threeGroupC},
+        {"fourGroupC", topspin::fourGroupC},
+        {"oddEvenC", topspin::oddEvenC},
+        {"threeDistanceC", topspin::threeDistanceC},
+        {"fourDistanceC", topspin::fourDistanceC}
+    };
+
+    auto it = heuristics.find(heuristic);
+    if (it != heuristics.end()) {
+        return it->second(state.permutation, state.k);
+    }
+    return INT_MAX;
 }

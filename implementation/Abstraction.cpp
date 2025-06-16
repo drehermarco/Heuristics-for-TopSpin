@@ -11,12 +11,28 @@
 
 namespace topspin {
 
+using State = std::vector<int>;
+struct VecHash {
+    size_t operator()(const State& v) const noexcept {
+        size_t h = 0;
+        for (int x : v) h ^= std::hash<int>{}(x) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+    }
+};
+static std::unordered_map<State, int, VecHash> solutionLengthCache;
+
 std::vector<int> abstract_state(const std::vector<int>& input, const std::function<bool(const int&)>& predicate) {
     std::vector<int> abstraction;
     abstraction.reserve(input.size());
     for (const auto& item : input) {
         abstraction.push_back(predicate(item) ? item : 0);
     }
+    return abstraction;
+}
+
+std::vector<int> abstract_stateC(const std::vector<int>& input, const std::function<int(const int&)>& mapping) {
+    std::vector<int> abstraction(input.size());
+    std::ranges::transform(input, abstraction.begin(), mapping);
     return abstraction;
 }
 
@@ -51,6 +67,15 @@ bool is_goal(const std::vector<int>& abstraction) {
     return true;
 }
 
+bool is_goalC(const std::vector<int>& abstraction, const std::function<int(int)>& mapping) {
+    const int n = static_cast<int>(abstraction.size());
+    // Build the expected goal pattern using the mapping
+    for (int i = 0; i < n; i++) {
+        if (abstraction[i] != mapping(i + 1)) return false;
+    }
+    return true;
+}
+
 std::vector<int> subvec_wraparound(const std::vector<int>& vec, int pos, int len) {
     std::vector<int> result;
     int n = static_cast<int>(vec.size());
@@ -80,24 +105,14 @@ std::vector<int> reverseWindow(const std::vector<int>& state, int pos, int k) {
     return newState;
 }
 
-int getSolutionLength(const std::vector<int>& abstraction, int k) {
-    using State = std::vector<int>;
-    struct VecHash {
-        size_t operator()(const State& v) const noexcept {
-            size_t h = 0;
-            for (int x : v) h ^= std::hash<int>{}(x) + 0x9e3779b9 + (h << 6) + (h >> 2);
-            return h;
-        }
-    };
-
+template<typename GoalFunc>
+int getSolutionLengthGeneric(const std::vector<int>& abstraction, int k, GoalFunc is_goal_func) {
     State key = normalize(abstraction);
-    static std::unordered_map<State, int, VecHash> solutionLengthCache;
 
     auto it = solutionLengthCache.find(key);
     if (it != solutionLengthCache.end()) return it->second;
- 
 
-    if (is_goal(key)) {
+    if (is_goal_func(key)) {
         solutionLengthCache[key] = 0;
         return 0;
     }
@@ -120,15 +135,26 @@ int getSolutionLength(const std::vector<int>& abstraction, int k) {
             State next = reverseWindow(current, pos, k);
             if (!visited.emplace(next).second) continue;
 
-            if (is_goal(next)) {
-                solutionLengthCache[key] = depth + 1;
-                return depth + 1;
+            if (is_goal_func(next)) {
+                int goal_depth = depth + 1;
+                solutionLengthCache[key] = goal_depth;
+                return goal_depth;
             }
             q.push({std::move(next), depth + 1});
         }
     }
     solutionLengthCache[key] = -1;
     return -1;
+}
+
+int getSolutionLength(const std::vector<int>& abstraction, int k) {
+    return getSolutionLengthGeneric(abstraction, k, is_goal);
+}
+
+int getSolutionLengthC(const std::vector<int>& abstraction, int k, const std::function<int(int)>& mapping) {
+    return getSolutionLengthGeneric(abstraction, k, [&](const std::vector<int>& state) {
+        return is_goalC(state, mapping);
+    });
 }
 
 } // namespace topspin

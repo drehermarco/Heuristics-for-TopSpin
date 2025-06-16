@@ -12,7 +12,7 @@ public:
         int size;
         int k;
         TopSpinState();
-        TopSpinState(const std::vector<int>& perm);
+        TopSpinState(const std::vector<int>& perm, const int k);
         bool operator==(const TopSpinState& other) const;
         friend std::ostream& operator<<(std::ostream& os, const TopSpinState& state);
     };
@@ -41,7 +41,7 @@ public:
     TopSpinState getInitialState() const;
     bool is_Goal(const TopSpinState& state) const;
     std::vector<TopSpinActionStatePair> successors(const TopSpinState& state) const;
-    int h(const TopSpinState& state) const;
+    int h(const TopSpinState& state, const std::string& heuristic) const;
 };
 
 #endif
