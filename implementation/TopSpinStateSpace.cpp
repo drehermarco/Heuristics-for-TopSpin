@@ -91,7 +91,7 @@ int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic
     using HeuristicFunc = int(*)(const std::vector<int>&, int);
     static const std::unordered_map<std::string, HeuristicFunc> heuristics = {
         {"gap", topspin::gapHeuristic},
-        {"manhatten", topspin::circularManhattanHeuristic},
+        {"manhattan", topspin::circularManhattanHeuristic},
         {"twoGroup", topspin::twoGroup},
         {"threeGroup", topspin::threeGroup},
         {"fourGroup", topspin::fourGroup},
