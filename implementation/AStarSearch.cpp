@@ -1,5 +1,4 @@
 #include "TopSpinStateSpace.h"
-#include <cstdlib>
 #include <iostream>
 #include <cassert>
 #include <queue>
@@ -9,9 +8,11 @@
 #include <climits>
 #include <unordered_map>
 #include <chrono>
-#include <memory>
 #include <numeric>
 #include <random>
+#include <functional>
+#include <ranges>
+#include <memory>
 
 namespace std {
     template <>
@@ -43,50 +44,50 @@ TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
     return state;
 }
 
-class NodePool {
-    std::vector<std::unique_ptr<struct Node>> pool;
-public:
-    template<typename... Args>
-    Node* allocate(Args&&... args) {
-        pool.push_back(std::make_unique<Node>(std::forward<Args>(args)...));
-        return pool.back().get();
-    }
-    void clear() { pool.clear(); }
-};
-
-struct Node {
-    TopSpinStateSpace::TopSpinState state;
-    Node* parent;
-    TopSpinStateSpace::TopSpinAction action;
-    int cost;
-    int h;
-
-    Node(const TopSpinStateSpace::TopSpinState& s, Node* p,
-         const TopSpinStateSpace::TopSpinAction& a, int c, int h)
-        : state(s), parent(p), action(a), cost(c), h(h) {}
-};
-
-struct CompareNodes {
-    bool operator()(const Node* a, const Node* b) const {
-        int f_a = a->cost + 1 * a->h;
-        int f_b = b->cost + 1 * b->h;
-        if (f_a != f_b) return f_a > f_b;
-        return a->h > b->h;
-    }
-};
+void normalize(TopSpinStateSpace::TopSpinState* state) {
+    auto it = std::find(state->permutation.begin(), state->permutation.end(), 1);
+    if (it == state->permutation.end()) return;
+    int idx = std::distance(state->permutation.begin(), it);
+    std::rotate(state->permutation.begin(), state->permutation.begin() + idx, state->permutation.end());
+}
 
 class AStarSearch {
 private:
     long statesGenerated = 0;
     long expandedNodes = 0;
 
-    std::vector<TopSpinStateSpace::TopSpinActionStatePair> extract_path(Node* node) {
-        std::vector<TopSpinStateSpace::TopSpinActionStatePair> path;
+    struct Node {
+        TopSpinStateSpace::TopSpinState state;
+        Node* parent;
+        TopSpinStateSpace::TopSpinAction action;
+        int cost;
+        int h;
+
+        Node(const TopSpinStateSpace::TopSpinState& s, Node* p,
+             const TopSpinStateSpace::TopSpinAction& a, int c, int h)
+            : state(s), parent(p), action(a), cost(c), h(h) {}
+    };
+
+    struct CompareNodes {
+        bool operator()(const Node* a, const Node* b) const {
+            int f_a = a->cost + 1 * a->h;
+            int f_b = b->cost + 1 * b->h;
+
+            if (f_a != f_b) {
+                return f_a > f_b;
+            } else {
+                return a->h > b->h;
+            }
+        }
+    };
+
+    vector<TopSpinStateSpace::TopSpinActionStatePair> extract_path(Node* node) {
+        vector<TopSpinStateSpace::TopSpinActionStatePair> path;
         while (node && node->parent) {
-            path.push_back({node->action, node->state});
+            path.push_back(TopSpinStateSpace::TopSpinActionStatePair(node->action, node->state));
             node = node->parent;
         }
-        std::reverse(path.begin(), path.end());
+        reverse(path.begin(), path.end());
         return path;
     }
 
@@ -123,52 +124,59 @@ public:
     }
 
     vector<TopSpinStateSpace::TopSpinActionStatePair> run_Algorithm(const string& heuristic) {
-        NodePool nodePool;
-        priority_queue<Node*, vector<Node*>, CompareNodes> open;
-        unordered_map<TopSpinStateSpace::TopSpinState, int> g_values;
 
-        auto initialState = stateSpace.getInitialState();
+        priority_queue<Node*, vector<Node*>, CompareNodes> open;
+        unordered_map<TopSpinStateSpace::TopSpinState, int> closed;
+
+        TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
         int initial_h = stateSpace.h(initialState, heuristic);
 
         cout << "Initial state: " << initialState << endl;
         cout << "Heuristic value of initial state: " << initial_h << endl;
 
-        if (initial_h == INT_MAX) return {};
+        if (initial_h == INT_MAX)
+            return {};
 
-        Node* root = nodePool.allocate(initialState, nullptr, TopSpinStateSpace::TopSpinAction(-1), 0, initial_h);
+        Node* root = new Node(initialState, nullptr, TopSpinStateSpace::TopSpinAction(-1), 0, initial_h);
         open.push(root);
-        g_values[initialState] = 0;
+
         statesGenerated++;
 
         while (!open.empty()) {
             Node* current = open.top();
             open.pop();
+            
+            auto closedIt = closed.find(current->state);
+            if (closedIt != closed.end() && closedIt->second <= current->cost) {
+                delete current;
+                continue;
+            }
+            closed[current->state] = current->cost;
 
             if (stateSpace.is_Goal(current->state)) {
-                auto path = extract_path(current);
-                nodePool.clear();
+                vector<TopSpinStateSpace::TopSpinActionStatePair> path = extract_path(current);
+                while (!open.empty()) {
+                    delete open.top();
+                    open.pop();
+                }
+                delete current;
                 return path;
             }
 
-            if (g_values[current->state] < current->cost) continue;
+            auto successors = stateSpace.successors(current->state);
+            for (const auto& [action, succState] : successors) {
+                TopSpinStateSpace::TopSpinState nextState = succState;
+                normalize(&nextState); 
 
-            for (const auto& pair : stateSpace.successors(current->state)) {
-                int g = current->cost + pair.action.cost();
-                int h = stateSpace.h(pair.state, heuristic);
+                int g = current->cost + action.cost();
+                int h = stateSpace.h(nextState, heuristic);
                 if (h == INT_MAX) continue;
-
-                auto it = g_values.find(pair.state);
-                if (it != g_values.end() && g >= it->second) continue;
-
-                g_values[pair.state] = g;
-                Node* child = nodePool.allocate(pair.state, current, pair.action, g, h);
-                open.push(child);
+                Node* successor = new Node(nextState, current, action, g, h);
+                open.push(successor);
                 statesGenerated++;
             }
             expandedNodes++;
         }
-
-        nodePool.clear();
         return {};
     }
 };
@@ -184,7 +192,6 @@ int main(int argc, char* argv[]) {
     int m = std::atoi(argv[3]);
     string heuristic = argv[4];
     TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
-    //TopSpinStateSpace::TopSpinState initialState({3, 10, 12, 11, 1, 7, 14, 15, 4, 8, 6, 16, 9, 5, 13, 2});
     AStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
     return 0;

@@ -28,7 +28,7 @@ int circularManhattanHeuristic(const std::vector<int>& state, int k) {
         count += dist;
     }
     //return count;
-    return static_cast<int>(std::ceil(count / static_cast<double>(k - 1)));
+    return static_cast<int>(std::round(count / static_cast<double>(k - 1)));
 }
 
 int gapHeuristic(const std::vector<int>& state, int k) {
@@ -44,7 +44,7 @@ int gapHeuristic(const std::vector<int>& state, int k) {
             count++;
         }   
     }
-    return static_cast<int>(std::ceil(count / 2.0));
+    return static_cast<int>(std::round(count / 2.0));
 }
 
 int twoGroup(const std::vector<int>& state, int k) {
