@@ -23,12 +23,9 @@ int circularManhattanHeuristic(const std::vector<int>& state, int k) {
     for (int i = 0; i < n; ++i) {
         int goal_pos = perm[i] - 1;
         int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
-        // Each reversal can affect up to (k - 1) positions of a tile,
-        // so estimate number of moves required
         count += dist;
     }
-    //return count;
-    return static_cast<int>(std::round(count / static_cast<double>(k - 1)));
+    return static_cast<int>(std::round(count / static_cast<double>(k * (k - 1))));
 }
 
 int gapHeuristic(const std::vector<int>& state, int k) {
@@ -37,7 +34,7 @@ int gapHeuristic(const std::vector<int>& state, int k) {
     for (int i = 0; i < n; i++) {
         int current = state[i];
         int next = state[(i + 1) % n];
-        if (current == n && next == 1) {
+        if ((current == n && next == 1) || (current == 1 && next == n)) {
             continue; // Skip the wrap-around case for circular
         }
         if (abs(current - next) > 1) {
@@ -47,73 +44,29 @@ int gapHeuristic(const std::vector<int>& state, int k) {
     return static_cast<int>(std::round(count / 2.0));
 }
 
-int twoGroup(const std::vector<int>& state, int k) {
-    int bound = state.size() / 2;
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [bound](int x) { return x <= bound; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [bound](int x) { return x > bound; });
+int groupHeuristic(const std::vector<int>& state, int k, int numGroups) {
+    int n = static_cast<int>(state.size());
+    int bound = n / numGroups;
+    std::vector<int> h(numGroups, 0);
 
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    return std::max(h1, h2);
+    for (int g = 0; g < numGroups; ++g) {
+        auto predicate = [g, bound, numGroups](int x) {
+            return x > g * bound && x <= (g + 1) * bound;
+        };
+        std::vector<int> abstraction = topspin::abstract_state(state, predicate);
+        h[g] = topspin::getSolutionLength(abstraction, k);
+    }
+    return *std::max_element(h.begin(), h.end());
 }
 
-int threeGroup(const std::vector<int>& state, int k) {
-    int bound = state.size() / 3;
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [bound](int x) { return x <= bound; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [bound](int x) { return x > bound && x <= 2 * bound; });
-    std::vector<int> abstraction3 = topspin::abstract_state(state, [bound](int x) { return x > 2 * bound; });
-
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    int h3 = topspin::getSolutionLength(abstraction3, k);
-    return std::max({h1, h2, h3});
-}
-
-int fourGroup(const std::vector<int>& state, int k) {
-    int bound = state.size() / 4;
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [bound](int x) { return x <= bound; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [bound](int x) { return x > bound && x <= 2 * bound; });
-    std::vector<int> abstraction3 = topspin::abstract_state(state, [bound](int x) { return x > 2 * bound && x <= 3 * bound; });
-    std::vector<int> abstraction4 = topspin::abstract_state(state, [bound](int x) { return x > 3 * bound; });
-
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    int h3 = topspin::getSolutionLength(abstraction3, k);
-    int h4 = topspin::getSolutionLength(abstraction4, k);
-    return std::max({h1, h2, h3, h4});
-}
-
-int oddEven(const std::vector<int>& state, int k) {
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [](int x) { return x % 2 == 0; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [](int x) { return x % 2 == 1; });
-    
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    return std::max(h1, h2);
-}
-
-int threeDistance(const std::vector<int>& state, int k) {
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [](int x) { return x % 3 == 0; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [](int x) { return x % 3 == 1; });
-    std::vector<int> abstraction3 = topspin::abstract_state(state, [](int x) { return x % 3 == 2; });
-
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    int h3 = topspin::getSolutionLength(abstraction3, k);
-    return std::max({h1, h2, h3});
-}
-
-int fourDistance(const std::vector<int>& state, int k) {
-    std::vector<int> abstraction1 = topspin::abstract_state(state, [](int x) { return x % 4 == 0; });
-    std::vector<int> abstraction2 = topspin::abstract_state(state, [](int x) { return x % 4 == 1; });
-    std::vector<int> abstraction3 = topspin::abstract_state(state, [](int x) { return x % 4 == 2; });
-    std::vector<int> abstraction4 = topspin::abstract_state(state, [](int x) { return x % 4 == 3; });
-
-    int h1 = topspin::getSolutionLength(abstraction1, k);
-    int h2 = topspin::getSolutionLength(abstraction2, k);
-    int h3 = topspin::getSolutionLength(abstraction3, k);
-    int h4 = topspin::getSolutionLength(abstraction4, k);
-    return std::max({h1, h2, h3, h4});
+int modDistance(const std::vector<int>& state, int k, int mod) {
+    std::vector<int> h(mod, 0);
+    for (int m = 0; m < mod; ++m) {
+        auto predicate = [m, mod](int x) { return x % mod == m; };
+        std::vector<int> abstraction = topspin::abstract_state(state, predicate);
+        h[m] = topspin::getSolutionLength(abstraction, k);
+    }
+    return *std::max_element(h.begin(), h.end());
 }
 
 int twoGroupC(const std::vector<int>& state, int k) {
@@ -172,4 +125,5 @@ int fourDistanceC(const std::vector<int>& state, int k) {
     int h = topspin::getSolutionLengthC(abstraction, k, mapping);
     return h;
 }
+
 }  // namespace topspin

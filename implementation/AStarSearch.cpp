@@ -129,6 +129,7 @@ public:
         unordered_map<TopSpinStateSpace::TopSpinState, int> closed;
 
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
+        normalize(&initialState); // Normalize the initial state
         int initial_h = stateSpace.h(initialState, heuristic);
 
         cout << "Initial state: " << initialState << endl;
@@ -166,8 +167,7 @@ public:
             auto successors = stateSpace.successors(current->state);
             for (const auto& [action, succState] : successors) {
                 TopSpinStateSpace::TopSpinState nextState = succState;
-                normalize(&nextState); 
-
+                normalize(&nextState);
                 int g = current->cost + action.cost();
                 int h = stateSpace.h(nextState, heuristic);
                 if (h == INT_MAX) continue;

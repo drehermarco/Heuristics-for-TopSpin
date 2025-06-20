@@ -13,12 +13,8 @@ int circularManhattanHeuristic(const std::vector<int>& permutation, int k);
 int gapHeuristic(const std::vector<int>& permutation, int k);
 
 // Abstract heuristics (padding)
-int twoGroup(const std::vector<int>& permutation, int k);
-int threeGroup(const std::vector<int>& permutation, int k);
-int fourGroup(const std::vector<int>& permutation, int k);
-int oddEven(const std::vector<int>& state, int k);
-int threeDistance(const std::vector<int>& state, int k);
-int fourDistance(const std::vector<int>& state, int k);
+int groupHeuristic(const std::vector<int>& permutation, int k, int numGroups);
+int modDistance(const std::vector<int>& permutation, int k, int mod);
 
 // Abstract heuristics (Cartesian)
 int twoGroupC(const std::vector<int>& permutation, int k);
@@ -27,8 +23,6 @@ int fourGroupC(const std::vector<int>& permutation, int k);
 int oddEvenC(const std::vector<int>& state, int k);
 int threeDistanceC(const std::vector<int>& state, int k);
 int fourDistanceC(const std::vector<int>& state, int k);
-
-
    
 }  // namespace topspin
 
