@@ -3,16 +3,17 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdint>
 
 class TopSpinStateSpace {
 public:
     class TopSpinState {
     public:
-        std::vector<int> permutation;
+        std::vector<uint8_t> permutation;
         int size;
         int k;
         TopSpinState();
-        TopSpinState(const std::vector<int>& perm, const int k);
+        TopSpinState(const std::vector<uint8_t>& perm, const int k);
         bool operator==(const TopSpinState& other) const;
         friend std::ostream& operator<<(std::ostream& os, const TopSpinState& state);
     };

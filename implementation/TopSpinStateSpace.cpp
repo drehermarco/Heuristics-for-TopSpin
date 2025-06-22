@@ -3,11 +3,11 @@
 #include "Heuristics.h"
 #include <algorithm>
 #include <vector>
+#include <cstdint>
 #include <cmath>
 
-// TopSpinState
 TopSpinStateSpace::TopSpinState::TopSpinState() : size(0) {}
-TopSpinStateSpace::TopSpinState::TopSpinState(const std::vector<int>& perm, const int k) {
+TopSpinStateSpace::TopSpinState::TopSpinState(const std::vector<uint8_t>& perm, const int k) {
     permutation = perm;
     size = perm.size();
     this->k = k;
@@ -18,13 +18,12 @@ bool TopSpinStateSpace::TopSpinState::operator==(const TopSpinState& other) cons
 }
 
 std::ostream& operator<<(std::ostream& os, const TopSpinStateSpace::TopSpinState& state) {
-    for (int i = 0; i < state.size; ++i) {
-        os << state.permutation[i] << " ";
+    for (size_t i = 0; i < state.permutation.size(); ++i) {
+        os << static_cast<int>(state.permutation[i]) << " ";
     }
     return os;
 }
 
-// TopSpinAction
 TopSpinStateSpace::TopSpinAction::TopSpinAction(int r) {
     rotate = r;
 }
@@ -36,7 +35,7 @@ int TopSpinStateSpace::TopSpinAction::cost() const {
 void TopSpinStateSpace::TopSpinAction::apply(TopSpinState& state) const {
     if (rotate < 0) return;
     int n = static_cast<int>(state.permutation.size());
-    int k = state.k;  // Make sure this value exists or is passed in appropriately
+    int k = state.k;
 
     for (int i = 0; i < k / 2; i++) {
         int left = (rotate + i) % n;
@@ -50,11 +49,9 @@ std::ostream& operator<<(std::ostream& os, const TopSpinStateSpace::TopSpinActio
     return os;
 }
 
-// TopSpinActionStatePair
 TopSpinStateSpace::TopSpinActionStatePair::TopSpinActionStatePair(const TopSpinAction& a, const TopSpinState& s)
     : action(a), state(s) {}
 
-// TopSpinStateSpace
 TopSpinStateSpace::TopSpinStateSpace(int size, TopSpinState initial) {
     initialState = initial;
     n = initial.size;
@@ -88,17 +85,17 @@ std::vector<TopSpinStateSpace::TopSpinActionStatePair> TopSpinStateSpace::succes
 }
 
 int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic) const {
-    using HeuristicFunc = int(*)(const std::vector<int>&, int);
+    using HeuristicFunc = int(*)(const std::vector<uint8_t>&, int);
     static const std::unordered_map<std::string, HeuristicFunc> heuristics = {
         {"gap", topspin::gapHeuristic},
         {"manhattan", topspin::circularManhattanHeuristic},
-        {"twoGroup", [](const std::vector<int>& s, int k) { return topspin::groupHeuristic(s, k, 2); }},
-        {"threeGroup", [](const std::vector<int>& s, int k) { return topspin::groupHeuristic(s, k, 3); }},
-        {"fourGroup", [](const std::vector<int>& s, int k) { return topspin::groupHeuristic(s, k, 4); }},
-        {"fiveGroup", [](const std::vector<int>& s, int k) { return topspin::groupHeuristic(s, k, 5); }},
-        {"oddEven", [](const std::vector<int>& s, int k) { return topspin::modDistance(s, k, 2); }},
-        {"threeDistance", [](const std::vector<int>& s, int k) { return topspin::modDistance(s, k, 3); }},
-        {"fourDistance", [](const std::vector<int>& s, int k) { return topspin::modDistance(s, k, 4); }},
+        {"twoGroup", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristic(s, k, 2); }},
+        {"threeGroup", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristic(s, k, 3); }},
+        {"fourGroup", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristic(s, k, 4); }},
+        {"fiveGroup", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristic(s, k, 5); }},
+        {"oddEven", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 2); }},
+        {"threeDistance", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 3); }},
+        {"fourDistance", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 4); }},
         {"twoGroupC", topspin::twoGroupC},
         {"threeGroupC", topspin::threeGroupC},
         {"fourGroupC", topspin::fourGroupC},

@@ -13,14 +13,16 @@
 #include <functional>
 #include <ranges>
 #include <memory>
+#include <cstdint>
 
 namespace std {
     template <>
     struct hash<TopSpinStateSpace::TopSpinState> {
         size_t operator()(const TopSpinStateSpace::TopSpinState& state) const {
-            return std::hash<std::string_view>()(
-                std::string_view(reinterpret_cast<const char*>(state.permutation.data()),
-                                 state.permutation.size() * sizeof(int)));
+            size_t h = 0;
+            for (int x : state.permutation)
+                h ^= hash<int>()(x) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            return h;
         }
     };
 }
@@ -28,7 +30,7 @@ namespace std {
 using namespace std;
 
 TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
-    std::vector<int> permutation(size);
+    std::vector<uint8_t> permutation(size);
     std::iota(permutation.begin(), permutation.end(), 1);
     TopSpinStateSpace::TopSpinState state(permutation, k);
 
@@ -53,13 +55,12 @@ void normalize(TopSpinStateSpace::TopSpinState* state) {
 
 class AStarSearch {
 private:
-    long statesGenerated = 0;
     long expandedNodes = 0;
 
     struct Node {
         TopSpinStateSpace::TopSpinState state;
-        Node* parent;
         TopSpinStateSpace::TopSpinAction action;
+        Node* parent;
         int cost;
         int h;
 
@@ -70,14 +71,9 @@ private:
 
     struct CompareNodes {
         bool operator()(const Node* a, const Node* b) const {
-            int f_a = a->cost + 1 * a->h;
-            int f_b = b->cost + 1 * b->h;
-
-            if (f_a != f_b) {
-                return f_a > f_b;
-            } else {
-                return a->h > b->h;
-            }
+            int f_a = a->cost + a->h;
+            int f_b = b->cost + b->h;
+            return f_a > f_b || (f_a == f_b && a->h > b->h);
         }
     };
 
@@ -129,7 +125,7 @@ public:
         unordered_map<TopSpinStateSpace::TopSpinState, int> closed;
 
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
-        normalize(&initialState); // Normalize the initial state
+        normalize(&initialState);
         int initial_h = stateSpace.h(initialState, heuristic);
 
         cout << "Initial state: " << initialState << endl;
@@ -140,8 +136,6 @@ public:
 
         Node* root = new Node(initialState, nullptr, TopSpinStateSpace::TopSpinAction(-1), 0, initial_h);
         open.push(root);
-
-        statesGenerated++;
 
         while (!open.empty()) {
             Node* current = open.top();
@@ -173,7 +167,6 @@ public:
                 if (h == INT_MAX) continue;
                 Node* successor = new Node(nextState, current, action, g, h);
                 open.push(successor);
-                statesGenerated++;
             }
             expandedNodes++;
         }
@@ -191,7 +184,8 @@ int main(int argc, char* argv[]) {
     int k = std::atoi(argv[2]);
     int m = std::atoi(argv[3]);
     string heuristic = argv[4];
-    TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
+    //TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
+    TopSpinStateSpace::TopSpinState initialState({1, 20, 19, 13, 7, 6, 4, 11, 5, 2, 3, 10, 18, 17, 14, 16, 12, 15, 8, 9}, k);
     AStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
     return 0;

@@ -36,7 +36,6 @@ void normalize(TopSpinStateSpace::TopSpinState* state) {
     std::rotate(state->permutation.begin(), state->permutation.begin() + idx, state->permutation.end());
 }
 
-// Custom hash function for TopSpinState to use in unordered_set
 namespace std {
     template <>
     struct hash<TopSpinStateSpace::TopSpinState> {
@@ -65,19 +64,17 @@ private:
         if (f > threshold) return f;
         if (stateSpace.is_Goal(state)) {
             solution = path;
-            return -1; // FOUND
+            return -1;
         }
 
         int minNext = INT_MAX;
         auto successors = stateSpace.successors(state);
-        // Optional: sort successors by heuristic value
         std::sort(successors.begin(), successors.end(), [&](const auto& a, const auto& b) {
             return stateSpace.h(a.state, heuristic) < stateSpace.h(b.state, heuristic);
         });
 
         for (auto pair : successors) {
             normalize(&pair.state);
-            // Path checking using visited set
             if (visited.find(pair.state) != visited.end()) continue;
 
             path.push_back(pair);
