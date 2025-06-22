@@ -73,7 +73,8 @@ private:
         bool operator()(const Node* a, const Node* b) const {
             int f_a = a->cost + a->h;
             int f_b = b->cost + b->h;
-            return f_a > f_b || (f_a == f_b && a->h > b->h);
+            if (f_a != f_b) return f_a > f_b;
+            return a->cost < b->cost;
         }
     };
 
@@ -111,7 +112,7 @@ public:
             int totalCost = 0;
             cout << "Solution:" << endl;
             for (const auto& pair : solution) {
-                cout << "State: " << pair.state << " with heuristic: " << stateSpace.h(pair.state, heuristic) << endl;
+                cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
@@ -120,16 +121,14 @@ public:
     }
 
     vector<TopSpinStateSpace::TopSpinActionStatePair> run_Algorithm(const string& heuristic) {
-
         priority_queue<Node*, vector<Node*>, CompareNodes> open;
-        unordered_map<TopSpinStateSpace::TopSpinState, int> closed;
+        unordered_map<size_t, int> closed;
 
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
         normalize(&initialState);
         int initial_h = stateSpace.h(initialState, heuristic);
 
-        cout << "Initial state: " << initialState << endl;
-        cout << "Heuristic value of initial state: " << initial_h << endl;
+        cout << "Initial State: " << initialState << "| h = " << initial_h << endl;
 
         if (initial_h == INT_MAX)
             return {};
@@ -141,12 +140,13 @@ public:
             Node* current = open.top();
             open.pop();
             
-            auto closedIt = closed.find(current->state);
+            size_t stateHash = std::hash<TopSpinStateSpace::TopSpinState>()(current->state);
+            auto closedIt = closed.find(stateHash);
             if (closedIt != closed.end() && closedIt->second <= current->cost) {
                 delete current;
                 continue;
             }
-            closed[current->state] = current->cost;
+            closed[stateHash] = current->cost;
 
             if (stateSpace.is_Goal(current->state)) {
                 vector<TopSpinStateSpace::TopSpinActionStatePair> path = extract_path(current);
@@ -184,8 +184,7 @@ int main(int argc, char* argv[]) {
     int k = std::atoi(argv[2]);
     int m = std::atoi(argv[3]);
     string heuristic = argv[4];
-    //TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
-    TopSpinStateSpace::TopSpinState initialState({1, 20, 19, 13, 7, 6, 4, 11, 5, 2, 3, 10, 18, 17, 14, 16, 12, 15, 8, 9}, k);
+    TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
     AStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
     return 0;
