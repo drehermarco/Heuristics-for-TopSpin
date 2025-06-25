@@ -1,19 +1,30 @@
 #include "TopSpinStateSpace.h"
-#include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <climits>
 #include <chrono>
 #include <algorithm>
-#include <numeric>
-#include <random>
 #include <unordered_set>
+#include <random>
+#include <numeric>
 
 using namespace std;
 
+namespace std {
+    template <>
+    struct hash<TopSpinStateSpace::TopSpinState> {
+        size_t operator()(const TopSpinStateSpace::TopSpinState& state) const {
+            size_t h = 0;
+            for (int x : state.permutation)
+                h ^= hash<int>()(x) + 0x9e3779b9 + (h << 6) + (h >> 2);
+            return h;
+        }
+    };
+}
+
 TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
-    std::vector<int> permutation(size);
+    std::vector<uint8_t> permutation(size);
     std::iota(permutation.begin(), permutation.end(), 1);
     TopSpinStateSpace::TopSpinState state(permutation, k);
 
@@ -36,29 +47,20 @@ void normalize(TopSpinStateSpace::TopSpinState* state) {
     std::rotate(state->permutation.begin(), state->permutation.begin() + idx, state->permutation.end());
 }
 
-namespace std {
-    template <>
-    struct hash<TopSpinStateSpace::TopSpinState> {
-        std::size_t operator()(const TopSpinStateSpace::TopSpinState& s) const {
-            std::size_t h = 0;
-            for (int val : s.permutation) {
-                h ^= std::hash<int>()(val) + 0x9e3779b9 + (h << 6) + (h >> 2);
-            }
-            return h;
-        }
-    };
-}
-
 class IDAStarSearch {
-private:
-    long nodesExpanded = 0;
+public:
+    TopSpinStateSpace stateSpace;
+    long long nodesExpanded = 0;
 
-    int search(const TopSpinStateSpace& stateSpace,
-            const TopSpinStateSpace::TopSpinState& state,
-            int g, int threshold, const string& heuristic,
-            std::vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
-            std::unordered_set<TopSpinStateSpace::TopSpinState>& visited,
-            std::vector<TopSpinStateSpace::TopSpinActionStatePair>& solution) {
+    IDAStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
+        : stateSpace(initialState.size, initialState) {}
+
+    int search(const TopSpinStateSpace::TopSpinState& state,
+               int g, int threshold,
+               const string& heuristic,
+               vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
+               unordered_set<TopSpinStateSpace::TopSpinState>& visited,
+               vector<TopSpinStateSpace::TopSpinActionStatePair>& solution) {
         int h = stateSpace.h(state, heuristic);
         int f = g + h;
         if (f > threshold) return f;
@@ -69,58 +71,61 @@ private:
 
         int minNext = INT_MAX;
         auto successors = stateSpace.successors(state);
-        std::sort(successors.begin(), successors.end(), [&](const auto& a, const auto& b) {
-            return stateSpace.h(a.state, heuristic) < stateSpace.h(b.state, heuristic);
-        });
+        vector<pair<TopSpinStateSpace::TopSpinActionStatePair, int>> succWithH;
+        succWithH.reserve(successors.size());
 
-        for (auto pair : successors) {
-            normalize(&pair.state);
-            if (visited.find(pair.state) != visited.end()) continue;
+        for (auto& pair : successors) {
+            TopSpinStateSpace::TopSpinState nextState = pair.state;
+            normalize(&nextState);
+            int hVal = stateSpace.h(nextState, heuristic);
+            succWithH.push_back({{pair.action, nextState}, hVal});
+        }
 
-            path.push_back(pair);
-            visited.insert(pair.state);
+        std::sort(succWithH.begin(), succWithH.end(),
+                [](auto& a, auto& b) { return a.second < b.second; });
+
+        for (auto& elem : succWithH) {
+            auto& pair = elem.first;
+            TopSpinStateSpace::TopSpinState nextState = pair.state;
+            if (visited.count(nextState)) continue;
+
+            path.push_back({pair.action, nextState});
+            visited.insert(nextState);
             nodesExpanded++;
-            int temp = search(stateSpace, pair.state, g + pair.action.cost(), threshold, heuristic, path, visited, solution);
+
+            int temp = search(nextState, g + pair.action.cost(), threshold, heuristic, path, visited, solution);
             if (temp == -1) return -1;
             if (temp < minNext) minNext = temp;
             path.pop_back();
-            visited.erase(pair.state);
+            visited.erase(nextState);
         }
         return minNext;
     }
-
-
-public:
-    TopSpinStateSpace stateSpace;
-
-    IDAStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
-        : stateSpace(initialState.size, initialState) {}
 
     void runSearchAlgorithm(const string& heuristic) {
         using namespace std::chrono;
 
         cout << "Starting IDA* search..." << endl;
         TopSpinStateSpace::TopSpinState initial = stateSpace.getInitialState();
-        normalize(&initial); // Normalize the initial state
+        normalize(&initial);
         int threshold = stateSpace.h(initial, heuristic);
-        cout << "Initial state: " << initial << endl;
-        cout << "Heuristic value of initial state: " << threshold << endl;
+        cout << "Initial State: " << initial << "| h = " << threshold << endl;
 
         if (threshold == INT_MAX) {
-            cout << "No solution: Heuristic returned INT_MAX" << endl;
+            cout << "No solution found!" << endl;
             return;
         }
 
         auto timeStart = high_resolution_clock::now();
 
-        std::vector<TopSpinStateSpace::TopSpinActionStatePair> path;
-        std::vector<TopSpinStateSpace::TopSpinActionStatePair> solution;
+        vector<TopSpinStateSpace::TopSpinActionStatePair> path;
+        vector<TopSpinStateSpace::TopSpinActionStatePair> solution;
 
         int iteration = 0;
         while (true) {
-            std::unordered_set<TopSpinStateSpace::TopSpinState> visited;
+            unordered_set<TopSpinStateSpace::TopSpinState> visited;
             visited.insert(initial);
-            int temp = search(stateSpace, initial, 0, threshold, heuristic, path, visited, solution);
+            int temp = search(initial, 0, threshold, heuristic, path, visited, solution);
             iteration++;
             if (temp == -1) break;
             if (temp == INT_MAX) {
@@ -160,11 +165,9 @@ int main(int argc, char* argv[]) {
     int n = std::atoi(argv[1]);
     int k = std::atoi(argv[2]);
     int m = std::atoi(argv[3]);
-    const string heuristic = argv[4];
+    string heuristic = argv[4];
 
     TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
-    //TopSpinStateSpace::TopSpinState initialState({1, 2, 12, 8, 7, 14, 15, 10, 9, 19, 6, 16, 13, 18, 17, 11, 20, 3, 4, 5}, k);
-
     IDAStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
     return 0;

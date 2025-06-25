@@ -101,7 +101,8 @@ int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic
         {"fourGroupC", topspin::fourGroupC},
         {"oddEvenC", topspin::oddEvenC},
         {"threeDistanceC", topspin::threeDistanceC},
-        {"fourDistanceC", topspin::fourDistanceC}
+        {"fourDistanceC", topspin::fourDistanceC},
+        {"breakpoint", topspin::breakPointHeuristic}
     };
 
     auto it = heuristics.find(heuristic);

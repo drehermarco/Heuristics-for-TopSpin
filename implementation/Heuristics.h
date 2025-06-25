@@ -6,7 +6,7 @@
 #include <cstdint>
 
 namespace topspin {
-
+    
 // Manhatten like heuristic
 int circularManhattanHeuristic(const std::vector<uint8_t>& permutation, int k);
 
@@ -24,6 +24,9 @@ int fourGroupC(const std::vector<uint8_t>& permutation, int k);
 int oddEvenC(const std::vector<uint8_t>& state, int k);
 int threeDistanceC(const std::vector<uint8_t>& state, int k);
 int fourDistanceC(const std::vector<uint8_t>& state, int k);
+
+// Breakpoint heuristic
+int breakPointHeuristic(const std::vector<uint8_t>& state, int k);
    
 }  // namespace topspin
 
