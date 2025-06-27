@@ -14,11 +14,23 @@ namespace topspin {
 
 static int denom = 0;
 
+int misplacedTilesHeuristic(const std::vector<uint8_t>& state, int k) {
+    int n = static_cast<int>(state.size());
+    int misplaced = 0;
+
+    for (int i = 0; i < n; ++i) {
+        if (state[i] != i + 1)
+            misplaced++;
+    }
+    
+    return static_cast<int>(std::ceil(misplaced / static_cast<double>(k)));
+}
+
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
     int n = static_cast<int>(state.size());
     int count = 0;
 
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; i++) {
         int goal_pos = state[i] - 1;
         int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
         count += dist;
@@ -52,7 +64,7 @@ int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
     int bound = n / numGroups;
     std::vector<int> h(numGroups, 0);
 
-    for (int g = 0; g < numGroups; ++g) {
+    for (int g = 0; g < numGroups; g++) {
         auto predicate = [g, bound, numGroups](int x) {
             return x > g * bound && x <= (g + 1) * bound;
         };
@@ -72,58 +84,20 @@ int modDistance(const std::vector<uint8_t>& state, int k, int mod) {
     return *std::max_element(h.begin(), h.end());
 }
 
-int twoGroupC(const std::vector<uint8_t>& state, int k) {
-    int bound = state.size() / 2;
-        auto mapping = [bound](int x) {
-        if (x <= bound) return 1;
-        else return 2;
+int groupHeuristicC(const std::vector<uint8_t>& state, int k, int numGroups) {
+    int n = static_cast<int>(state.size());
+    int bound = n / numGroups;
+    auto mapping = [bound, numGroups, n](int x) {
+        int group = (x - 1) / bound + 1;
+        return (group > numGroups) ? numGroups : group;
     };
     std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
     int h = topspin::getSolutionLengthC(abstraction, k, mapping);
     return h;
 }
 
-int threeGroupC(const std::vector<uint8_t>& state, int k) {
-    int bound = state.size() / 3;
-    auto mapping = [bound](int x) {
-        if (x <= bound) return 1;
-        else if (x > bound && x <= 2 * bound) return 2;
-        else return 3;
-    };
-    std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
-    int h = topspin::getSolutionLengthC(abstraction, k, mapping);
-    return h;
-}
-
-int fourGroupC(const std::vector<uint8_t>& state, int k) {
-    int bound = state.size() / 4;
-    auto mapping = [bound](int x) {
-        if (x <= bound) return 1;
-        else if (x > bound && x <= 2 * bound) return 2;
-        else if (x > 2 * bound && x <= 3 * bound) return 3;
-        else return 4;
-    };
-    std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
-    int h = topspin::getSolutionLengthC(abstraction, k, mapping);
-    return h;
-}
-
-int oddEvenC(const std::vector<uint8_t>& state, int k) {
-    auto mapping = [](int x) { return x % 2; };
-    std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
-    int h = topspin::getSolutionLengthC(abstraction, k, mapping);
-    return h;
-}
-
-int threeDistanceC(const std::vector<uint8_t>& state, int k) {
-    auto mapping = [](int x) { return x % 3; };
-    std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
-    int h = topspin::getSolutionLengthC(abstraction, k, mapping);
-    return h;
-}
-
-int fourDistanceC(const std::vector<uint8_t>& state, int k) {
-    auto mapping = [](int x) { return x % 4; };
+int modDistanceC(const std::vector<uint8_t>& state, int k, int mod) {
+    auto mapping = [mod](int x) { return x % mod; };
     std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
     int h = topspin::getSolutionLengthC(abstraction, k, mapping);
     return h;

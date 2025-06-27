@@ -18,12 +18,8 @@ int groupHeuristic(const std::vector<uint8_t>& permutation, int k, int numGroups
 int modDistance(const std::vector<uint8_t>& permutation, int k, int mod);
 
 // Abstract heuristics (Cartesian)
-int twoGroupC(const std::vector<uint8_t>& permutation, int k);
-int threeGroupC(const std::vector<uint8_t>& permutation, int k);
-int fourGroupC(const std::vector<uint8_t>& permutation, int k);
-int oddEvenC(const std::vector<uint8_t>& state, int k);
-int threeDistanceC(const std::vector<uint8_t>& state, int k);
-int fourDistanceC(const std::vector<uint8_t>& state, int k);
+int groupHeuristicC(const std::vector<uint8_t>& permutation, int k, int numGroups);
+int modDistanceC(const std::vector<uint8_t>& permutation, int k, int mod);
 
 // Breakpoint heuristic
 int breakPointHeuristic(const std::vector<uint8_t>& state, int k);

@@ -96,12 +96,12 @@ int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic
         {"oddEven", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 2); }},
         {"threeDistance", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 3); }},
         {"fourDistance", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistance(s, k, 4); }},
-        {"twoGroupC", topspin::twoGroupC},
-        {"threeGroupC", topspin::threeGroupC},
-        {"fourGroupC", topspin::fourGroupC},
-        {"oddEvenC", topspin::oddEvenC},
-        {"threeDistanceC", topspin::threeDistanceC},
-        {"fourDistanceC", topspin::fourDistanceC},
+        {"twoGroupC", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristicC(s, k, 2); }},
+        {"threeGroupC", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristicC(s, k, 3); }},
+        {"fourGroupC", [](const std::vector<uint8_t>& s, int k) { return topspin::groupHeuristicC(s, k, 4); }},
+        {"oddEvenC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 2); }},
+        {"threeDistanceC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 3); }},
+        {"fourDistanceC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 4); }},
         {"breakpoint", topspin::breakPointHeuristic}
     };
 
