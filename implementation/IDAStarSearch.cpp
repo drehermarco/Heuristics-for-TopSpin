@@ -105,11 +105,10 @@ public:
     void runSearchAlgorithm(const string& heuristic) {
         using namespace std::chrono;
 
-        cout << "Starting IDA* search..." << endl;
         TopSpinStateSpace::TopSpinState initial = stateSpace.getInitialState();
         normalize(&initial);
         int threshold = stateSpace.h(initial, heuristic);
-        cout << "Initial State: " << initial << "| h = " << threshold << endl;
+        
 
         if (threshold == INT_MAX) {
             cout << "No solution found!" << endl;
@@ -137,21 +136,24 @@ public:
 
         auto timeEnd = high_resolution_clock::now();
         double elapsedSeconds = duration<double>(timeEnd - timeStart).count();
-        cout << "Search finished in " << elapsedSeconds << " seconds" << endl;
-        cout << "Iterations (threshold increases): " << iteration << endl;
+        cout << "Initial State: " << initial << "| h = " << stateSpace.h(initial, heuristic) << endl;
+        cout << elapsedSeconds << " seconds search time" << endl;
         cout << "Nodes expanded: " << nodesExpanded << endl;
 
         if (solution.empty()) {
             cout << "No solution" << endl;
         } else {
             int totalCost = 0;
-            cout << "Solution path:" << endl;
+            // Optional: Print the solution path
+            // Commented out for experimentation purposes
+            //cout << "Solution path:" << endl;
             for (const auto& pair : solution) {
-                cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
+                //cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
             cout << "Total cost: " << totalCost << endl;
+            cout << "-----------------------------------------" << endl;
         }
     }
 };

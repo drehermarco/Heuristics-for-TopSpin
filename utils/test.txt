@@ -1,0 +1,18 @@
+Initial State: 1 2 9 8 11 10 18 15 19 14 13 16 20 3 4 5 7 6 17 12 | h = 6   
+0.1112 seconds search time
+Nodes expanded: 189167
+Solution length: 10
+Total cost: 10
+-----------------------------------------
+Initial State: 1 2 5 6 8 4 3 7 13 14 10 15 11 17 16 9 20 19 18 12 | h = 6   
+0.001005 seconds search time
+Nodes expanded: 1324
+Solution length: 8
+Total cost: 8
+-----------------------------------------
+Initial State: 1 20 3 4 5 6 7 8 9 10 14 11 15 16 13 12 17 19 18 2 | h = 4
+0.0012245 seconds search time
+Nodes expanded: 1777
+Solution length: 6
+Total cost: 6
+-----------------------------------------

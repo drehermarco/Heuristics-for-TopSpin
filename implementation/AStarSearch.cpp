@@ -97,10 +97,15 @@ public:
     void runSearchAlgorithm(const string& heuristic) {
         using namespace std::chrono;
 
-        cout << "Starting search..." << endl;
         auto timeStart = high_resolution_clock::now();
         vector<TopSpinStateSpace::TopSpinActionStatePair> solution = run_Algorithm(heuristic);
         auto timeEnd = high_resolution_clock::now();
+
+        TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
+        normalize(&initialState);
+        int initial_h = stateSpace.h(initialState, heuristic);
+
+        cout << "Initial State: " << initialState << "| h = " << initial_h << endl;
 
         double elapsedSeconds = duration<double>(timeEnd - timeStart).count();
         cout << elapsedSeconds << " seconds search time" << endl;
@@ -110,9 +115,11 @@ public:
             cout << "No solution" << endl;
         } else {
             int totalCost = 0;
-            cout << "Solution:" << endl;
+            // Optional: Print the solution path
+            // Commented out for experimentation purposes
+            //cout << "Solution:" << endl;
             for (const auto& pair : solution) {
-                cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
+                //cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
@@ -127,8 +134,6 @@ public:
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
         normalize(&initialState);
         int initial_h = stateSpace.h(initialState, heuristic);
-
-        cout << "Initial State: " << initialState << "| h = " << initial_h << endl;
 
         if (initial_h == INT_MAX)
             return {};

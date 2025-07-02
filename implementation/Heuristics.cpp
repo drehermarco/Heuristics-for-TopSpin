@@ -14,18 +14,6 @@ namespace topspin {
 
 static int denom = 0;
 
-int misplacedTilesHeuristic(const std::vector<uint8_t>& state, int k) {
-    int n = static_cast<int>(state.size());
-    int misplaced = 0;
-
-    for (int i = 0; i < n; ++i) {
-        if (state[i] != i + 1)
-            misplaced++;
-    }
-    
-    return static_cast<int>(std::ceil(misplaced / static_cast<double>(k)));
-}
-
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
     int n = static_cast<int>(state.size());
     int count = 0;
@@ -76,7 +64,7 @@ int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
 
 int modDistance(const std::vector<uint8_t>& state, int k, int mod) {
     std::vector<int> h(mod, 0);
-    for (int m = 0; m < mod; ++m) {
+    for (int m = 0; m < mod; m++) {
         auto predicate = [m, mod](int x) { return x % mod == m; };
         std::vector<uint8_t> abstraction = topspin::abstract_state(state, predicate);
         h[m] = topspin::getSolutionLength(abstraction, k);
@@ -108,7 +96,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
     int n = static_cast<int>(state.size());
     std::vector<int> p(n + 2);
     p[0] = 0;
-    for (int i = 0; i < n; ++i) p[i + 1] = state[i];
+    for (int i = 0; i < n; i++) p[i + 1] = state[i];
     p[n + 1] = n + 1;
     n = p.size();
 
@@ -116,7 +104,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
     Graph graph;
     int black_edges = 0;
 
-    for (int i = 0; i < n - 1; ++i) {
+    for (int i = 0; i < n - 1; i++) {
         int u = p[i], v = p[i + 1];
         if (std::abs(u - v) != 1) {
             graph[u]["black"].insert(v);
@@ -129,7 +117,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
         }
     }
 
-    for (int i = 0; i < n - 1; ++i) {
+    for (int i = 0; i < n - 1; i++) {
         int u = p[i], v = p[i + 1];
         if (std::abs(u - v) == 1) {
             graph[u]["gray"].erase(v);
@@ -155,7 +143,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
                     continue;
                 }
             }
-            ++it;
+            it++;
         }
     }
 
@@ -208,7 +196,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
     };
 
     cleanUpGraph(graph);
-    for (int len = 2; len <= 20; ++len) {
+    for (int len = 2; len <= 5; len++) {
         findKCycles(graph, 2 * len, cycle_count);
         cleanUpGraph(graph);
     }
