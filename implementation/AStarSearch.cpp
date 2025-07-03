@@ -102,7 +102,7 @@ public:
         auto timeEnd = high_resolution_clock::now();
 
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
-        normalize(&initialState);
+        //normalize(&initialState);
         int initial_h = stateSpace.h(initialState, heuristic);
 
         cout << "Initial State: " << initialState << "| h = " << initial_h << endl;
@@ -117,9 +117,9 @@ public:
             int totalCost = 0;
             // Optional: Print the solution path
             // Commented out for experimentation purposes
-            //cout << "Solution:" << endl;
+            cout << "Solution:" << endl;
             for (const auto& pair : solution) {
-                //cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
+                cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
@@ -132,7 +132,7 @@ public:
         unordered_map<size_t, int> closed;
 
         TopSpinStateSpace::TopSpinState initialState = stateSpace.getInitialState();
-        normalize(&initialState);
+        //normalize(&initialState);
         int initial_h = stateSpace.h(initialState, heuristic);
 
         if (initial_h == INT_MAX)
@@ -146,8 +146,7 @@ public:
             open.pop();
             
             size_t stateHash = std::hash<TopSpinStateSpace::TopSpinState>()(current->state);
-            auto closedIt = closed.find(stateHash);
-            if (closedIt != closed.end() && closedIt->second <= current->cost) {
+            if (closed.count(stateHash)) {
                 delete current;
                 continue;
             }
@@ -166,7 +165,7 @@ public:
             auto successors = stateSpace.successors(current->state);
             for (const auto& [action, succState] : successors) {
                 TopSpinStateSpace::TopSpinState nextState = succState;
-                normalize(&nextState);
+                //normalize(&nextState);
                 int g = current->cost + action.cost();
                 int h = stateSpace.h(nextState, heuristic);
                 if (h == INT_MAX) continue;

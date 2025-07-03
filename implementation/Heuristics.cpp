@@ -15,20 +15,28 @@ namespace topspin {
 static int denom = 0;
 
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
-    int n = static_cast<int>(state.size());
-    int count = 0;
+    static int denom = 0;
+    const int n = static_cast<int>(state.size());
+    int best = INT_MAX;
 
-    for (int i = 0; i < n; i++) {
-        int goal_pos = state[i] - 1;
-        int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
-        count += dist;
+    for (int rot = 0; rot < n; rot++) {
+        int count = 0;
+        for (int i = 0; i < n; i++) {
+            int tile = state[(i + rot) % n];
+            int goal_pos = tile - 1;
+            int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
+            count += dist;
+        }
+        best = std::min(best, count);
     }
+
     if (denom == 0) {
         for (int i = 0; i < k; i++) {
             denom += std::abs(i - (k - 1 - i));
         }
     }
-    return static_cast<int>(std::floor(count / static_cast<double>(denom)));
+
+    return static_cast<int>(std::floor(best / static_cast<double>(denom)));
 }
 
 int gapHeuristic(const std::vector<uint8_t>& state, int k) {
@@ -93,10 +101,11 @@ int modDistanceC(const std::vector<uint8_t>& state, int k, int mod) {
 
 // Breakpoint heuristic
 int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
-    int n = static_cast<int>(state.size());
+    std::vector<uint8_t> norm = topspin::normalize(state);
+    int n = static_cast<int>(norm.size());
     std::vector<int> p(n + 2);
     p[0] = 0;
-    for (int i = 0; i < n; i++) p[i + 1] = state[i];
+    for (int i = 0; i < n; i++) p[i + 1] = norm[i];
     p[n + 1] = n + 1;
     n = p.size();
 
@@ -202,5 +211,4 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
     }
     return static_cast<int>(std::ceil((black_edges - cycle_count) / 2.0));
 }
-
 }  // namespace topspin

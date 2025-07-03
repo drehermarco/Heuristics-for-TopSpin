@@ -76,7 +76,7 @@ public:
 
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
-            normalize(&nextState);
+            //normalize(&nextState);
             int hVal = stateSpace.h(nextState, heuristic);
             succWithH.push_back({{pair.action, nextState}, hVal});
         }
@@ -106,7 +106,7 @@ public:
         using namespace std::chrono;
 
         TopSpinStateSpace::TopSpinState initial = stateSpace.getInitialState();
-        normalize(&initial);
+        //normalize(&initial);
         int threshold = stateSpace.h(initial, heuristic);
         
 
@@ -146,9 +146,9 @@ public:
             int totalCost = 0;
             // Optional: Print the solution path
             // Commented out for experimentation purposes
-            //cout << "Solution path:" << endl;
+            cout << "Solution path:" << endl;
             for (const auto& pair : solution) {
-                //cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
+                cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
