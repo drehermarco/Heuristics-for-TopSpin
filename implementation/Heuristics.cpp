@@ -18,6 +18,7 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
     static int denom = 0;
     const int n = static_cast<int>(state.size());
     int best = INT_MAX;
+    int temp = 0;
 
     for (int rot = 0; rot < n; rot++) {
         int count = 0;
@@ -27,6 +28,7 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
             int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
             count += dist;
         }
+        temp += count;
         best = std::min(best, count);
     }
 
@@ -35,8 +37,7 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
             denom += std::abs(i - (k - 1 - i));
         }
     }
-
-    return static_cast<int>(std::floor(best / static_cast<double>(denom)));
+    return static_cast<int>(std::ceil(best / static_cast<double>(denom)));
 }
 
 int gapHeuristic(const std::vector<uint8_t>& state, int k) {
@@ -52,7 +53,7 @@ int gapHeuristic(const std::vector<uint8_t>& state, int k) {
             count++;
         }   
     }
-    return static_cast<int>(std::floor(count / 2.0));
+    return static_cast<int>(std::ceil(count / 2.0));
 }
 
 int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
