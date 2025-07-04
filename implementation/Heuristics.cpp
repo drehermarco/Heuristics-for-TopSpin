@@ -15,7 +15,6 @@ namespace topspin {
 static int denom = 0;
 
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
-    static int denom = 0;
     const int n = static_cast<int>(state.size());
     int best = INT_MAX;
     int temp = 0;
@@ -28,7 +27,6 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
             int dist = std::min((i - goal_pos + n) % n, (goal_pos - i + n) % n);
             count += dist;
         }
-        temp += count;
         best = std::min(best, count);
     }
 
