@@ -17,8 +17,7 @@ static int denom = 0;
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
     const int n = static_cast<int>(state.size());
     int best = INT_MAX;
-    int temp = 0;
-
+    
     for (int rot = 0; rot < n; rot++) {
         int count = 0;
         for (int i = 0; i < n; i++) {
