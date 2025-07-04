@@ -5,6 +5,7 @@
 #include <vector>
 #include <cstdint>
 #include <cmath>
+#include <climits>
 
 TopSpinStateSpace::TopSpinState::TopSpinState() : size(0) {}
 TopSpinStateSpace::TopSpinState::TopSpinState(const std::vector<uint8_t>& perm, const int k) {
