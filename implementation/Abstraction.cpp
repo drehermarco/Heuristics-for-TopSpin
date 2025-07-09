@@ -66,10 +66,17 @@ bool is_goal(const std::vector<uint8_t>& abstraction) {
 
 bool is_goalC(const std::vector<uint8_t>& abstraction, const std::function<int(uint8_t)>& mapping) {
     const int n = static_cast<int>(abstraction.size());
-    for (int i = 0; i < n; i++) {
-        if (abstraction[i] != mapping(i + 1)) return false;
+    for (int rot = 0; rot < n; rot++) {
+        bool goal = true;
+        for (int i = 0; i < n; i++) {
+            if (abstraction[(i + rot) % n] != mapping(i + 1)) {
+                goal = false;
+                break;
+            }
+        }
+        if (goal) return true;
     }
-    return true;
+    return false;
 }
 
 std::vector<uint8_t> subvec_wraparound(const std::vector<uint8_t>& vec, int pos, int len) {
