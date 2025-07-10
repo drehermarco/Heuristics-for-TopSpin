@@ -103,7 +103,7 @@ int TopSpinStateSpace::h(const TopSpinState& state, const std::string& heuristic
         {"oddEvenC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 2); }},
         {"threeDistanceC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 3); }},
         {"fourDistanceC", [](const std::vector<uint8_t>& s, int k) { return topspin::modDistanceC(s, k, 4); }},
-        {"breakpoint", topspin::breakPointHeuristic}
+        {"breakpoint", topspin::breakpointHeuristic}
     };
 
     auto it = heuristics.find(heuristic);

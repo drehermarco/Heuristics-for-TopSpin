@@ -190,6 +190,6 @@ int main(int argc, char* argv[]) {
     string heuristic = argv[4];
     TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
     AStarSearch search(initialState);
-    search.runSearchAlgorithm(heuristic);
+    search.runSearchAlgorithm(heuristic); 
     return 0;
 }

@@ -22,7 +22,8 @@ int groupHeuristicC(const std::vector<uint8_t>& permutation, int k, int numGroup
 int modDistanceC(const std::vector<uint8_t>& permutation, int k, int mod);
 
 // Breakpoint heuristic
-int breakPointHeuristic(const std::vector<uint8_t>& state, int k);
+int breakpointCalculation(const std::vector<uint8_t>& state, int k);
+int breakpointHeuristic(const std::vector<uint8_t>& state, int k);
    
 }  // namespace topspin
 

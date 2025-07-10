@@ -9,15 +9,18 @@
 #include <unordered_set>
 #include <cstdint>
 #include <queue>
+#include <climits>
+#include <random>
 
 namespace topspin {
 
 static int denom = 0;
 
 int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
+    static int denom = 0;
     const int n = static_cast<int>(state.size());
     int best = INT_MAX;
-    
+
     for (int rot = 0; rot < n; rot++) {
         int count = 0;
         for (int i = 0; i < n; i++) {
@@ -34,7 +37,8 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
             denom += std::abs(i - (k - 1 - i));
         }
     }
-    return static_cast<int>(std::ceil(best / static_cast<double>(denom)));
+
+    return static_cast<int>(std::floor(best / static_cast<double>(denom)));
 }
 
 int gapHeuristic(const std::vector<uint8_t>& state, int k) {
@@ -50,7 +54,7 @@ int gapHeuristic(const std::vector<uint8_t>& state, int k) {
             count++;
         }   
     }
-    return static_cast<int>(std::ceil(count / 2.0));
+    return static_cast<int>(std::floor(count / 2.0));
 }
 
 int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
@@ -98,12 +102,20 @@ int modDistanceC(const std::vector<uint8_t>& state, int k, int mod) {
 }
 
 // Breakpoint heuristic
-int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
-    std::vector<uint8_t> norm = topspin::normalize(state);
-    int n = static_cast<int>(norm.size());
+struct pair_hash {
+    template <class T1, class T2>
+    std::size_t operator() (const std::pair<T1,T2>& p) const {
+        auto h1 = std::hash<T1>{}(p.first);
+        auto h2 = std::hash<T2>{}(p.second);
+        return h1 ^ (h2 << 1);
+    }
+};
+
+int breakpointCalculation(const std::vector<uint8_t>& state, int k) {
+    int n = static_cast<int>(state.size());
     std::vector<int> p(n + 2);
     p[0] = 0;
-    for (int i = 0; i < n; i++) p[i + 1] = norm[i];
+    for (int i = 0; i < n; i++) p[i + 1] = state[i];
     p[n + 1] = n + 1;
     n = p.size();
 
@@ -131,29 +143,7 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
             graph[v]["gray"].erase(u);
         }
     }
-
     int cycle_count = 0;
-    for (auto& [u, edges_u] : graph) {
-        auto& black = edges_u["black"];
-        auto& gray = edges_u["gray"];
-        for (auto it = black.begin(); it != black.end();) {
-            int v = *it;
-            if (std::abs(u - v) == 2) {
-                int w = (u + v) / 2;
-                auto& gray_v = graph[v]["gray"];
-                if (gray.count(w) && gray_v.count(w)) {
-                    black.erase(it++);
-                    graph[v]["black"].erase(u);
-                    gray.erase(w);
-                    gray_v.erase(w);
-                    cycle_count++;
-                    continue;
-                }
-            }
-            it++;
-        }
-    }
-
     auto cleanUpGraph = [](Graph& g) {
         std::vector<int> to_remove;
         for (auto& [node, edges] : g)
@@ -189,24 +179,66 @@ int breakPointHeuristic(const std::vector<uint8_t>& state, int k) {
         };
 
     auto findKCycles = [&](Graph& g, int k, int& count) {
-        bool found = true;
-        while (found) {
-            found = false;
-            for (auto& [u, _] : g) {
-                std::vector<int> path = {u};
-                if (findKCycleFrom(g, path, k, true, count)) {
-                    found = true;
-                    break;
-                }
+        std::vector<std::pair<int,int>> black_edges_list;
+
+        std::unordered_set<std::pair<int,int>, pair_hash> seen;
+        for (auto& [u, edges] : g) {
+            for (int v : edges["black"]) {
+                if (u < v) black_edges_list.emplace_back(u, v);
+            }
+        }
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::shuffle(black_edges_list.begin(), black_edges_list.end(), gen);
+
+        for (auto& [u,v] : black_edges_list) {
+            if (!g.count(u) || !g.count(v)) continue;
+
+            std::vector<int> path = {u, v};
+            int local_count = 0;
+
+            if (findKCycleFrom(g, path, k, false, local_count)) {
+                count += local_count;
             }
         }
     };
 
-    cleanUpGraph(graph);
-    for (int len = 2; len <= 5; len++) {
+    for (int len = 2; len <= 10; len++) {
         findKCycles(graph, 2 * len, cycle_count);
         cleanUpGraph(graph);
     }
-    return static_cast<int>(std::ceil((black_edges - cycle_count) / 2.0));
+    return black_edges - cycle_count;
 }
+
+int breakpointHeuristic(const std::vector<uint8_t>& state, int k) {
+    int n = static_cast<int>(state.size());
+    // Initial state
+    int best_h = INT_MAX;
+
+    for (int i = 0; i < n/2; i++) {
+        // Rotation with 1 at position 0
+        best_h = std::min(best_h, breakpointCalculation(state, k));
+        auto it1 = std::find(state.begin(), state.end(), 1);
+        if (it1 != state.end()) {
+            int idx1 = static_cast<int>(std::distance(state.begin(), it1));
+            std::vector<uint8_t> rot1(n);
+            for (int i = 0; i < n; i++)
+                rot1[i] = state[(i + idx1) % n];
+            best_h = std::min(best_h, breakpointCalculation(rot1, k));
+        }
+
+        // Rotation with n at position n-1
+        auto itn = std::find(state.begin(), state.end(), n);
+        if (itn != state.end()) {
+            int idxn = static_cast<int>(std::distance(state.begin(), itn));
+            std::vector<uint8_t> rotn(n);
+            for (int i = 0; i < n; i++)
+                rotn[i] = state[(i + idxn - (n - 1) + n) % n];
+            best_h = std::min(best_h, breakpointCalculation(rotn, k));
+        }
+    }
+    return best_h;
+}
+
 }  // namespace topspin
