@@ -38,7 +38,7 @@ int circularManhattanHeuristic(const std::vector<uint8_t>& state, int k) {
         }
     }
 
-    return static_cast<int>(std::floor(best / static_cast<double>(denom)));
+    return static_cast<int>(std::ceil(best / static_cast<double>(denom)));
 }
 
 int gapHeuristic(const std::vector<uint8_t>& state, int k) {
@@ -54,7 +54,7 @@ int gapHeuristic(const std::vector<uint8_t>& state, int k) {
             count++;
         }   
     }
-    return static_cast<int>(std::floor(count / 2.0));
+    return static_cast<int>(std::ceil(count / 2.0));
 }
 
 int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
