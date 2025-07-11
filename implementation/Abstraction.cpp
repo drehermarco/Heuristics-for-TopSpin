@@ -79,16 +79,6 @@ bool is_goalC(const std::vector<uint8_t>& abstraction, const std::function<int(u
     return false;
 }
 
-std::vector<uint8_t> subvec_wraparound(const std::vector<uint8_t>& vec, int pos, int len) {
-    std::vector<uint8_t> result;
-    int n = static_cast<int>(vec.size());
-    result.reserve(len);
-    for (int i = 0; i < len; i++) {
-        result.push_back(vec[(pos + i) % n]);
-    }
-    return result;
-}
-
 bool non_zero(const std::vector<uint8_t>& state, int pos, int n, int k) {
     for (int i = 0; i < k; i++) {
         if (state[(pos + i) % n] != 0) return true;
