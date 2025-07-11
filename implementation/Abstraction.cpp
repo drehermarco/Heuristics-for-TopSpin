@@ -99,7 +99,7 @@ std::vector<uint8_t> reverseWindow(const std::vector<uint8_t>& state, int pos, i
 }
 
 template<typename GoalFunc>
-int getSolutionLengthGeneric(const std::vector<uint8_t>& abstraction, int k, GoalFunc is_goal_func) {
+int getSolutionLengthGeneric(const std::vector<uint8_t>& abstraction, int k, GoalFunc is_goal_func, int mode) {
     State key = normalize(abstraction);
 
     auto it = solutionLengthCache.find(key);
@@ -123,7 +123,7 @@ int getSolutionLengthGeneric(const std::vector<uint8_t>& abstraction, int k, Goa
         q.pop();
 
         for (int pos = 0; pos < n; pos++) {
-            if (!non_zero(current, pos, n, k)) continue;
+            if (mode == 1 && !non_zero(current, pos, n, k)) continue;
 
             State next = reverseWindow(current, pos, k);
             if (!visited.emplace(next).second) continue;
@@ -141,13 +141,13 @@ int getSolutionLengthGeneric(const std::vector<uint8_t>& abstraction, int k, Goa
 }
 
 int getSolutionLength(const std::vector<uint8_t>& abstraction, int k) {
-    return getSolutionLengthGeneric(abstraction, k, is_goal);
+    return getSolutionLengthGeneric(abstraction, k, is_goal, 1);
 }
 
 int getSolutionLengthC(const std::vector<uint8_t>& abstraction, int k, const std::function<int(uint8_t)>& mapping) {
     return getSolutionLengthGeneric(abstraction, k, [&](const std::vector<uint8_t>& state) {
         return is_goalC(state, mapping);
-    });
+    }, 0);
 }
 
 } // namespace topspin
