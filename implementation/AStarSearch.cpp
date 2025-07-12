@@ -117,13 +117,14 @@ public:
             int totalCost = 0;
             // Optional: Print the solution path
             // Commented out for experimentation purposes
-            cout << "Solution:" << endl;
+            //cout << "Solution:" << endl;
             for (const auto& pair : solution) {
-                cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
+                //cout << "State: " << pair.state << "| h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
             cout << "Solution cost: " << totalCost << endl;
+            cout << "-----------------------------------------" << endl;
         }
     }
 
