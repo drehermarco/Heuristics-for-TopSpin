@@ -59,12 +59,16 @@ int gapHeuristic(const std::vector<uint8_t>& state, int k) {
 
 int groupHeuristic(const std::vector<uint8_t>& state, int k, int numGroups) {
     int n = static_cast<int>(state.size());
-    int bound = n / numGroups;
+    int bound = (n + 1) / numGroups;
     std::vector<int> h(numGroups, 0);
 
     for (int g = 0; g < numGroups; g++) {
-        auto predicate = [g, bound, numGroups](int x) {
-            return x > g * bound && x <= (g + 1) * bound;
+        auto predicate = [g, bound, numGroups, n](int x) {
+            if (g == numGroups - 1) {
+                return x > g * bound && x <= n;
+            } else {
+                return x > g * bound && x <= (g + 1) * bound;
+            }
         };
         std::vector<uint8_t> abstraction = topspin::abstract_state(state, predicate);
         h[g] = topspin::getSolutionLength(abstraction, k);
@@ -84,10 +88,11 @@ int modDistance(const std::vector<uint8_t>& state, int k, int mod) {
 
 int groupHeuristicC(const std::vector<uint8_t>& state, int k, int numGroups) {
     int n = static_cast<int>(state.size());
-    int bound = n / numGroups;
+    int bound = (n + 1) / numGroups;
     auto mapping = [bound, numGroups, n](int x) {
         int group = (x - 1) / bound + 1;
-        return (group > numGroups) ? numGroups : group;
+        if (group > numGroups) group = numGroups;
+        return group;
     };
     std::vector<uint8_t> abstraction = topspin::abstract_stateC(state, mapping);
     int h = topspin::getSolutionLengthC(abstraction, k, mapping);
