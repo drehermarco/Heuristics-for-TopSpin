@@ -223,7 +223,6 @@ int breakpointHeuristic(const std::vector<uint8_t>& state, int k) {
 
     for (int i = 0; i < n/2; i++) {
         // Rotation with 1 at position 0
-        best_h = std::min(best_h, breakpointCalculation(state, k));
         auto it1 = std::find(state.begin(), state.end(), 1);
         if (it1 != state.end()) {
             int idx1 = static_cast<int>(std::distance(state.begin(), it1));
