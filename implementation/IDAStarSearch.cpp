@@ -41,86 +41,74 @@ TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
     return state;
 }
 
-void normalize(TopSpinStateSpace::TopSpinState* state) {
-    auto it = std::find(state->permutation.begin(), state->permutation.end(), 1);
-    if (it == state->permutation.end()) return;
-    int idx = std::distance(state->permutation.begin(), it);
-    std::rotate(state->permutation.begin(), state->permutation.begin() + idx, state->permutation.end());
-}
-
 class IDAStarSearch {
 public:
     TopSpinStateSpace stateSpace;
     long long nodesExpanded = 0;
+    double nextBound = 0.0;
 
     IDAStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
         : stateSpace(initialState.size, initialState) {}
 
-    int search(const TopSpinStateSpace::TopSpinState& state,
-           int g, int threshold,
-           const string& heuristic,
-           vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
-           unordered_set<TopSpinStateSpace::TopSpinState>& visited,
-           vector<TopSpinStateSpace::TopSpinActionStatePair>& solution,
-           unordered_map<TopSpinStateSpace::TopSpinState, int>& nodeTable)
+    double search(const TopSpinStateSpace::TopSpinState& state,
+        const TopSpinStateSpace::TopSpinState& parent,
+        double g, double bound,
+        const string& heuristic,
+        vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
+        const TopSpinStateSpace::TopSpinState& goal,
+        bool& found)
     {
-        int h = stateSpace.h(state, heuristic);
-        int f = g + h;
-        if (f > threshold) return f;
+        nodesExpanded++;
+        double h = static_cast<double>(stateSpace.h(state, heuristic));
+        double f = g + h;
+
+        if (f > bound) {
+            updateNextBound(bound, f);
+            return h;
+        }
         if (stateSpace.is_Goal(state)) {
-            solution = path;
-            return -1;
+            found = true;
+            return 0.0;
         }
 
-        auto it = nodeTable.find(state);
-        if (it != nodeTable.end() && g >= it->second) {
-            return INT_MAX;
-        }
-        nodeTable[state] = g;
-
-        int minNext = INT_MAX;
         auto successors = stateSpace.successors(state);
-        vector<pair<TopSpinStateSpace::TopSpinActionStatePair, int>> succWithH;
-        succWithH.reserve(successors.size());
-
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
-            if (visited.count(nextState)) continue;
-            int hVal = stateSpace.h(nextState, heuristic);
-            succWithH.push_back({{pair.action, nextState}, hVal});
-        }
-
-        std::sort(succWithH.begin(), succWithH.end(),
-            [](auto& a, auto& b) {
-                if (a.second != b.second)
-                    return a.second < b.second;
-                return a.first.action.cost() > b.first.action.cost();
-            });
-
-        for (auto& elem : succWithH) {
-            auto& pair = elem.first;
-            TopSpinStateSpace::TopSpinState nextState = pair.state;
+            if (nextState == parent) continue;
 
             path.push_back({pair.action, nextState});
-            visited.insert(nextState);
-            nodesExpanded++;
-
-            int temp = search(nextState, g + pair.action.cost(), threshold, heuristic, path, visited, solution, nodeTable);
-            if (temp == -1) return -1;
-            if (temp < minNext) minNext = temp;
+            double edgeCost = static_cast<double>(pair.action.cost());
+            double childH = search(nextState, state, g + edgeCost, bound, heuristic, path, goal, found);
+            if (found) return 0.0;
             path.pop_back();
-            visited.erase(nextState);
+
+            if (childH - edgeCost > h) {
+                h = childH - edgeCost;
+                if (g + h > bound) {
+                    updateNextBound(bound, g + h);
+                    return h;
+                }
+            }
         }
-        return minNext;
+        return h;
+    }
+
+    void updateNextBound(double currBound, double fCost) {
+        fCost = floor(fCost);
+        if (nextBound <= currBound)
+            nextBound = fCost;
+        else if (fCost > currBound && fCost < nextBound)
+            nextBound = fCost;
     }
 
     void runSearchAlgorithm(const string& heuristic) {
         using namespace std::chrono;
 
         TopSpinStateSpace::TopSpinState initial = stateSpace.getInitialState();
-        int threshold = stateSpace.h(initial, heuristic);
+        double bound = static_cast<double>(stateSpace.h(initial, heuristic));
+        nextBound = bound;
 
-        if (threshold == INT_MAX) {
+        if (bound == static_cast<double>(INT_MAX)) {
             cout << "No solution found!" << endl;
             return;
         }
@@ -131,19 +119,24 @@ public:
         vector<TopSpinStateSpace::TopSpinActionStatePair> solution;
 
         int iteration = 0;
-        while (true) {
-            unordered_set<TopSpinStateSpace::TopSpinState> visited;
-            visited.insert(initial);
-            unordered_map<TopSpinStateSpace::TopSpinState, int> nodeTable;
-            int temp = search(initial, 0, threshold, heuristic, path, visited, solution, nodeTable);
+        bool found = false;
+        while (!found) {
+            unordered_map<TopSpinStateSpace::TopSpinState, double> nodeTable;
+            path.clear();
+            nextBound = 0.0;
+            path.push_back({TopSpinStateSpace::TopSpinAction(-1), initial});
+            double temp = search(initial, initial, 0.0, bound, heuristic, path, initial, found);
+            path.erase(path.begin());
             iteration++;
-            if (temp == -1) break;
-            if (temp == INT_MAX) {
+            if (found) {
+                solution = path;
+                break;
+            }
+            if (nextBound == 0.0 || nextBound == bound) {
                 cout << "No solution found" << endl;
                 return;
             }
-            threshold = temp;
-            nodeTable.clear();
+            bound = nextBound;
         }
 
         auto timeEnd = high_resolution_clock::now();
@@ -156,9 +149,7 @@ public:
             cout << "No solution" << endl;
         } else {
             int totalCost = 0;
-            //cout << "Solution path:" << endl;
             for (const auto& pair : solution) {
-                //cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
                 totalCost += pair.action.cost();
             }
             cout << "Solution length: " << solution.size() << endl;
