@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <random>
 #include <numeric>
+#include <unordered_map>
 
 using namespace std;
 
@@ -56,11 +57,13 @@ public:
         : stateSpace(initialState.size, initialState) {}
 
     int search(const TopSpinStateSpace::TopSpinState& state,
-               int g, int threshold,
-               const string& heuristic,
-               vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
-               unordered_set<TopSpinStateSpace::TopSpinState>& visited,
-               vector<TopSpinStateSpace::TopSpinActionStatePair>& solution) {
+           int g, int threshold,
+           const string& heuristic,
+           vector<TopSpinStateSpace::TopSpinActionStatePair>& path,
+           unordered_set<TopSpinStateSpace::TopSpinState>& visited,
+           vector<TopSpinStateSpace::TopSpinActionStatePair>& solution,
+           unordered_map<TopSpinStateSpace::TopSpinState, int>& nodeTable)
+    {
         int h = stateSpace.h(state, heuristic);
         int f = g + h;
         if (f > threshold) return f;
@@ -69,6 +72,13 @@ public:
             return -1;
         }
 
+        // Node table check
+        auto it = nodeTable.find(state);
+        if (it != nodeTable.end() && g >= it->second) {
+            return INT_MAX; // Already visited with lower or equal cost
+        }
+        nodeTable[state] = g;
+
         int minNext = INT_MAX;
         auto successors = stateSpace.successors(state);
         vector<pair<TopSpinStateSpace::TopSpinActionStatePair, int>> succWithH;
@@ -76,24 +86,27 @@ public:
 
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
-            //normalize(&nextState);
+            if (visited.count(nextState)) continue;
             int hVal = stateSpace.h(nextState, heuristic);
             succWithH.push_back({{pair.action, nextState}, hVal});
         }
 
         std::sort(succWithH.begin(), succWithH.end(),
-                [](auto& a, auto& b) { return a.second < b.second; });
+            [](auto& a, auto& b) {
+                if (a.second != b.second)
+                    return a.second < b.second;
+                return a.first.action.cost() > b.first.action.cost();
+            });
 
         for (auto& elem : succWithH) {
             auto& pair = elem.first;
             TopSpinStateSpace::TopSpinState nextState = pair.state;
-            if (visited.count(nextState)) continue;
 
             path.push_back({pair.action, nextState});
             visited.insert(nextState);
             nodesExpanded++;
 
-            int temp = search(nextState, g + pair.action.cost(), threshold, heuristic, path, visited, solution);
+            int temp = search(nextState, g + pair.action.cost(), threshold, heuristic, path, visited, solution, nodeTable);
             if (temp == -1) return -1;
             if (temp < minNext) minNext = temp;
             path.pop_back();
@@ -106,9 +119,7 @@ public:
         using namespace std::chrono;
 
         TopSpinStateSpace::TopSpinState initial = stateSpace.getInitialState();
-        //normalize(&initial);
         int threshold = stateSpace.h(initial, heuristic);
-        
 
         if (threshold == INT_MAX) {
             cout << "No solution found!" << endl;
@@ -124,7 +135,8 @@ public:
         while (true) {
             unordered_set<TopSpinStateSpace::TopSpinState> visited;
             visited.insert(initial);
-            int temp = search(initial, 0, threshold, heuristic, path, visited, solution);
+            unordered_map<TopSpinStateSpace::TopSpinState, int> nodeTable; // <-- add nodeTable
+            int temp = search(initial, 0, threshold, heuristic, path, visited, solution, nodeTable);
             iteration++;
             if (temp == -1) break;
             if (temp == INT_MAX) {
@@ -144,8 +156,6 @@ public:
             cout << "No solution" << endl;
         } else {
             int totalCost = 0;
-            // Optional: Print the solution path
-            // Commented out for experimentation purposes
             //cout << "Solution path:" << endl;
             for (const auto& pair : solution) {
                 //cout << "State: " << pair.state << " | h = " << stateSpace.h(pair.state, heuristic) << endl;
@@ -168,7 +178,6 @@ int main(int argc, char* argv[]) {
     int k = std::atoi(argv[2]);
     int m = std::atoi(argv[3]);
     string heuristic = argv[4];
-
     TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
     IDAStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
