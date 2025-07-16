@@ -72,10 +72,9 @@ public:
             return -1;
         }
 
-        // Node table check
         auto it = nodeTable.find(state);
         if (it != nodeTable.end() && g >= it->second) {
-            return INT_MAX; // Already visited with lower or equal cost
+            return INT_MAX;
         }
         nodeTable[state] = g;
 
@@ -135,7 +134,7 @@ public:
         while (true) {
             unordered_set<TopSpinStateSpace::TopSpinState> visited;
             visited.insert(initial);
-            unordered_map<TopSpinStateSpace::TopSpinState, int> nodeTable; // <-- add nodeTable
+            unordered_map<TopSpinStateSpace::TopSpinState, int> nodeTable;
             int temp = search(initial, 0, threshold, heuristic, path, visited, solution, nodeTable);
             iteration++;
             if (temp == -1) break;
