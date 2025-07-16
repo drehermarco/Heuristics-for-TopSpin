@@ -143,6 +143,7 @@ public:
                 return;
             }
             threshold = temp;
+            nodeTable.clear();
         }
 
         auto timeEnd = high_resolution_clock::now();
