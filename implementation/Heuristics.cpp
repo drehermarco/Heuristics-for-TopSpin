@@ -221,7 +221,7 @@ int breakpointHeuristic(const std::vector<uint8_t>& state, int k) {
     // Initial state
     int best_h = INT_MAX;
 
-    for (int i = 0; i < n/2; i++) {
+    for (int i = 0; i < n/4; i++) {
         // Rotation with 1 at position 0
         auto it1 = std::find(state.begin(), state.end(), 1);
         if (it1 != state.end()) {
@@ -233,6 +233,7 @@ int breakpointHeuristic(const std::vector<uint8_t>& state, int k) {
         }
 
         // Rotation with n at position n-1
+        /*
         auto itn = std::find(state.begin(), state.end(), n);
         if (itn != state.end()) {
             int idxn = static_cast<int>(std::distance(state.begin(), itn));
@@ -240,7 +241,7 @@ int breakpointHeuristic(const std::vector<uint8_t>& state, int k) {
             for (int i = 0; i < n; i++)
                 rotn[i] = state[(i + idxn - (n - 1) + n) % n];
             best_h = std::min(best_h, breakpointCalculation(rotn, k));
-        }
+        }*/
     }
     return best_h;
 }
