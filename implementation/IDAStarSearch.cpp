@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include <random>
 #include <numeric>
+#include <list>
 #include <unordered_map>
 
 using namespace std;
@@ -41,6 +42,44 @@ TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
     return state;
 }
 
+// Last recently used cache should help with node expansion reduction
+template<typename Key, typename Value>
+class LRUCache {
+public:
+    using ListIt = typename std::list<std::pair<Key, Value>>::iterator;
+    LRUCache(size_t cap) : capacity(cap) {}
+
+    bool get(const Key& key, Value& value) {
+        auto it = map.find(key);
+        if (it == map.end()) return false;
+        cache.splice(cache.begin(), cache, it->second);
+        value = it->second->second;
+        return true;
+    }
+    void put(const Key& key, const Value& value) {
+        auto it = map.find(key);
+        if (it != map.end()) {
+            it->second->second = value;
+            cache.splice(cache.begin(), cache, it->second);
+        } else {
+            cache.emplace_front(key, value);
+            map[key] = cache.begin();
+            if (cache.size() > capacity) {
+                map.erase(cache.back().first);
+                cache.pop_back();
+            }
+        }
+    }
+    void clear() {
+        cache.clear();
+        map.clear();
+    }
+private:
+    size_t capacity;
+    std::list<std::pair<Key, Value>> cache;
+    std::unordered_map<Key, ListIt> map;
+};
+
 class IDAStarSearch {
 public:
     TopSpinStateSpace stateSpace;
@@ -48,7 +87,10 @@ public:
     double nextBound = 0.0;
 
     IDAStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
-        : stateSpace(initialState.size, initialState) {}
+        : stateSpace(initialState.size, initialState), transTable(TABLE_CAPACITY) {}
+
+    static constexpr size_t TABLE_CAPACITY = 5'000'000;
+    LRUCache<TopSpinStateSpace::TopSpinState, double> transTable;
 
     double search(const TopSpinStateSpace::TopSpinState& state,
         const TopSpinStateSpace::TopSpinState& parent,
@@ -62,6 +104,12 @@ public:
         double h = static_cast<double>(stateSpace.h(state, heuristic));
         double f = g + h;
 
+        double prevG;
+        if (transTable.get(state, prevG)) {
+            if (g >= prevG) return h;
+        }
+        transTable.put(state, g);
+
         if (f > bound) {
             updateNextBound(bound, f);
             return h;
@@ -72,6 +120,13 @@ public:
         }
 
         auto successors = stateSpace.successors(state);
+
+        std::sort(successors.begin(), successors.end(), [&](const auto& a, const auto& b) {
+            double fa = g + a.action.cost() + stateSpace.h(a.state, heuristic);
+            double fb = g + b.action.cost() + stateSpace.h(b.state, heuristic);
+            return fa < fb;
+        });
+
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
             if (nextState == parent) continue;
@@ -121,7 +176,7 @@ public:
         int iteration = 0;
         bool found = false;
         while (!found) {
-            unordered_map<TopSpinStateSpace::TopSpinState, double> nodeTable;
+            transTable.clear();
             path.clear();
             nextBound = 0.0;
             path.push_back({TopSpinStateSpace::TopSpinAction(-1), initial});
