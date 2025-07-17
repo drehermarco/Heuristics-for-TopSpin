@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <random>
 #include <numeric>
-#include <list>
 #include <unordered_map>
 
 using namespace std;
@@ -42,55 +41,17 @@ TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
     return state;
 }
 
-// Last recently used cache should help with node expansion reduction
-template<typename Key, typename Value>
-class LRUCache {
-public:
-    using ListIt = typename std::list<std::pair<Key, Value>>::iterator;
-    LRUCache(size_t cap) : capacity(cap) {}
-
-    bool get(const Key& key, Value& value) {
-        auto it = map.find(key);
-        if (it == map.end()) return false;
-        cache.splice(cache.begin(), cache, it->second);
-        value = it->second->second;
-        return true;
-    }
-    void put(const Key& key, const Value& value) {
-        auto it = map.find(key);
-        if (it != map.end()) {
-            it->second->second = value;
-            cache.splice(cache.begin(), cache, it->second);
-        } else {
-            cache.emplace_front(key, value);
-            map[key] = cache.begin();
-            if (cache.size() > capacity) {
-                map.erase(cache.back().first);
-                cache.pop_back();
-            }
-        }
-    }
-    void clear() {
-        cache.clear();
-        map.clear();
-    }
-private:
-    size_t capacity;
-    std::list<std::pair<Key, Value>> cache;
-    std::unordered_map<Key, ListIt> map;
-};
-
 class IDAStarSearch {
 public:
+    static constexpr size_t MAX_NODETABLE_ENTRIES = 21000000;
+
     TopSpinStateSpace stateSpace;
     long long nodesExpanded = 0;
     double nextBound = 0.0;
+    std::unordered_map<TopSpinStateSpace::TopSpinState, double> nodeTable;
 
     IDAStarSearch(const TopSpinStateSpace::TopSpinState& initialState)
-        : stateSpace(initialState.size, initialState), transTable(TABLE_CAPACITY) {}
-
-    static constexpr size_t TABLE_CAPACITY = 5'000'000;
-    LRUCache<TopSpinStateSpace::TopSpinState, double> transTable;
+        : stateSpace(initialState.size, initialState) {}
 
     double search(const TopSpinStateSpace::TopSpinState& state,
         const TopSpinStateSpace::TopSpinState& parent,
@@ -104,12 +65,6 @@ public:
         double h = static_cast<double>(stateSpace.h(state, heuristic));
         double f = g + h;
 
-        double prevG;
-        if (transTable.get(state, prevG)) {
-            if (g >= prevG) return h;
-        }
-        transTable.put(state, g);
-
         if (f > bound) {
             updateNextBound(bound, f);
             return h;
@@ -119,14 +74,17 @@ public:
             return 0.0;
         }
 
+        auto it = nodeTable.find(state);
+        if (it != nodeTable.end()) {
+            if (g >= it->second) {
+                return h;
+            }
+        }
+        if (nodeTable.size() < MAX_NODETABLE_ENTRIES) {
+            nodeTable[state] = g;
+        }
+
         auto successors = stateSpace.successors(state);
-
-        std::sort(successors.begin(), successors.end(), [&](const auto& a, const auto& b) {
-            double fa = g + a.action.cost() + stateSpace.h(a.state, heuristic);
-            double fb = g + b.action.cost() + stateSpace.h(b.state, heuristic);
-            return fa < fb;
-        });
-
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
             if (nextState == parent) continue;
@@ -176,7 +134,7 @@ public:
         int iteration = 0;
         bool found = false;
         while (!found) {
-            transTable.clear();
+            nodeTable.clear();
             path.clear();
             nextBound = 0.0;
             path.push_back({TopSpinStateSpace::TopSpinAction(-1), initial});
@@ -224,6 +182,8 @@ int main(int argc, char* argv[]) {
     int k = std::atoi(argv[2]);
     int m = std::atoi(argv[3]);
     string heuristic = argv[4];
+    // 1 11 3 4 6 12 10 9 5 7 2 8
+    //TopSpinStateSpace::TopSpinState initialState = { {1, 11, 3, 4, 6, 12, 10, 9, 5, 7, 2, 8}, k };
     TopSpinStateSpace::TopSpinState initialState = createRandomState(n, k, m);
     IDAStarSearch search(initialState);
     search.runSearchAlgorithm(heuristic);
