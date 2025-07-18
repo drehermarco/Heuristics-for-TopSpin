@@ -43,7 +43,7 @@ TopSpinStateSpace::TopSpinState createRandomState(int size, int k, int m) {
 
 class IDAStarSearch {
 public:
-    static const int MAX_NODE_TABLE_ENTRIES = 21000000;
+    static const int MAX_NODE_TABLE_ENTRIES = 30000000;
 
     TopSpinStateSpace stateSpace;
     long long nodesExpanded = 0;
@@ -62,6 +62,18 @@ public:
                 unordered_map<TopSpinStateSpace::TopSpinState, double>& nodeTable)
     {
         nodesExpanded++;
+        double h = static_cast<double>(stateSpace.h(state, heuristic));
+        double f = g + h;
+
+        if (f > bound) {
+            updateNextBound(bound, f);
+            return h;
+        }
+
+        if (stateSpace.is_Goal(state)) {
+            found = true;
+            return 0.0;
+        }
 
         auto it = nodeTable.find(state);
         if (it != nodeTable.end() && it->second <= g) {
@@ -72,22 +84,7 @@ public:
             nodeTable[state] = g;
         }
 
-        double h = static_cast<double>(stateSpace.h(state, heuristic));
-        double f = g + h;
-
-        if (f > bound) {
-            updateNextBound(bound, f);
-            return h;
-        }
-        if (stateSpace.is_Goal(state)) {
-            found = true;
-            return 0.0;
-        }
-
         auto successors = stateSpace.successors(state);
-        std::sort(successors.begin(), successors.end(), [&](const auto& a, const auto& b) {
-            return stateSpace.h(a.state, heuristic) < stateSpace.h(b.state, heuristic);
-        });
 
         for (auto& pair : successors) {
             TopSpinStateSpace::TopSpinState nextState = pair.state;
